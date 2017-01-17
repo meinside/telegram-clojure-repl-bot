@@ -1,0 +1,4 @@
+*.swp*
+
+telegram-bot-repl
+config.json
