@@ -2,6 +2,8 @@
 
 A Telegram bot for using REPL, built with golang.
 
+![screen shot 2017-01-17 at 17 36 13](https://cloud.githubusercontent.com/assets/185988/22013289/9508932e-dcdb-11e6-8429-abf51a74bd83.png)
+
 ## 1. Install
 
 ```bash
