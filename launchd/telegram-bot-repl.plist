@@ -8,6 +8,8 @@
 	<array>
 		<string>/path/to/telegram-bot-repl/telegram-bot-repl</string>
 	</array>
+	<key>UserName</key>
+	<string>user_name</string>
 	<key>RunAtLoad</key>
 	<true/>
 	<key>KeepAlive</key>
