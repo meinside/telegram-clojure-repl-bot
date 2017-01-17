@@ -149,6 +149,15 @@ func (c *ReplClient) Eval(code string) (received resp, err error) {
 	return received, err
 }
 
+// load given file
+func (c *ReplClient) LoadFile(filepath string) (received resp, err error) {
+	c.Lock()
+	received, err = c.sendAndRecv(cmd{op: OpEval, code: fmt.Sprintf(`(load-file "%s")`, filepath)})
+	c.Unlock()
+
+	return received, err
+}
+
 // best place for cleaning things up
 func (c *ReplClient) Shutdown() {
 	c.Lock()
