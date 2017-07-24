@@ -116,7 +116,7 @@ func main() {
 
 	// get info about this bot
 	if me := bot.GetMe(); me.Ok {
-		log.Printf("Starting bot: @%s (%s)\n", *me.Result.Username, *me.Result.FirstName)
+		log.Printf("Starting bot: @%s (%s)", *me.Result.Username, me.Result.FirstName)
 
 		// delete webhook (getting updates will not work when wehbook is set up)
 		if unhooked := bot.DeleteWebhook(); unhooked.Ok {
@@ -125,7 +125,7 @@ func main() {
 				if err == nil {
 					handleUpdate(b, update, client)
 				} else {
-					log.Printf("*** Error while receiving update (%s)\n", err.Error())
+					log.Printf("*** Error while receiving update (%s)", err.Error())
 				}
 			})
 		} else {
@@ -149,7 +149,7 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *ReplClient) {
 		var str string
 		username := *message.From.Username
 		if !isAllowedId(username) { // check if this user is allowed to use this bot
-			log.Printf("*** Received an update from an unauthorized user: @%s\n", username)
+			log.Printf("*** Received an update from an unauthorized user: @%s", username)
 
 			str = fmt.Sprintf("Your id: @%s is not allowed to use this bot.", username)
 		} else {
@@ -184,7 +184,7 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *ReplClient) {
 
 						// and delete it
 						if err := os.Remove(filepath); err != nil {
-							log.Printf("*** Failed to delete file %s: %s\n", filepath, err)
+							log.Printf("*** Failed to delete file %s: %s", filepath, err)
 						}
 					} else {
 						str = fmt.Sprintf("Failed load file: %s", err)
@@ -198,7 +198,7 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *ReplClient) {
 		}
 
 		// send message
-		if sent := b.SendMessage(message.Chat.Id, &str, map[string]interface{}{
+		if sent := b.SendMessage(message.Chat.Id, str, map[string]interface{}{
 			"reply_markup": telegram.ReplyKeyboardMarkup{ // show keyboards
 				Keyboard: [][]telegram.KeyboardButton{
 					[]telegram.KeyboardButton{
@@ -210,10 +210,10 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *ReplClient) {
 				ResizeKeyboard: true,
 			},
 		}); !sent.Ok {
-			log.Printf("*** Failed to send message: %s\n", *sent.Description)
+			log.Printf("*** Failed to send message: %s", *sent.Description)
 		}
 	} else {
-		log.Printf("*** Received update has no message\n")
+		log.Printf("*** Received update has no message")
 	}
 }
 
