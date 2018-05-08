@@ -19,25 +19,25 @@ import (
 )
 
 const (
-	ConfigFilename = "config.json"
+	configFilename = "config.json"
 
-	TempDir = "/tmp"
+	tempDir = "/tmp"
 )
 
 const (
-	DefaultMonitorInterval = 3
+	defaultMonitorInterval = 3
 
 	// telegram commands
-	CommandStart = "/start"
-	CommandReset = "/reset"
+	commandStart = "/start"
+	commandReset = "/reset"
 
 	// telegram messages
-	MessageWelcome       = "Welcome!"
-	MessageFailedToReset = "Failed to reset REPL."
+	messageWelcome       = "Welcome!"
+	messageFailedToReset = "Failed to reset REPL."
 )
 
 type config struct {
-	ApiToken        string   `json:"api_token"`
+	APIToken        string   `json:"api_token"`
 	LeinExecPath    string   `json:"lein_exec_path"`
 	ReplHost        string   `json:"repl_host"`
 	ReplPort        int      `json:"repl_port"`
@@ -58,16 +58,18 @@ var _isVerbose bool
 func openConfig() (config, error) {
 	_, filename, _, _ := runtime.Caller(0) // = __FILE__
 
-	if file, err := ioutil.ReadFile(filepath.Join(path.Dir(filename), ConfigFilename)); err == nil {
+	file, err := ioutil.ReadFile(filepath.Join(path.Dir(filename), configFilename))
+	if err == nil {
 		var conf config
-		if err := json.Unmarshal(file, &conf); err == nil {
+		err := json.Unmarshal(file, &conf)
+		if err == nil {
 			return conf, nil
-		} else {
-			return config{}, err
 		}
-	} else {
+
 		return config{}, err
 	}
+
+	return config{}, err
 }
 
 func init() {
@@ -75,13 +77,13 @@ func init() {
 	if conf, err := openConfig(); err != nil {
 		panic(err)
 	} else {
-		_apiToken = conf.ApiToken
+		_apiToken = conf.APIToken
 		_leinExecPath = conf.LeinExecPath
 		_replHost = conf.ReplHost
 		_replPort = conf.ReplPort
 
 		if conf.MonitorInterval <= 0 {
-			conf.MonitorInterval = DefaultMonitorInterval
+			conf.MonitorInterval = defaultMonitorInterval
 		}
 		_monitorInterval = conf.MonitorInterval
 		_allowedIds = conf.AllowedIds
@@ -90,7 +92,7 @@ func init() {
 }
 
 // check if given Telegram id is allowed or not
-func isAllowedId(id string) bool {
+func isAllowedID(id string) bool {
 	for _, v := range _allowedIds {
 		if v == id {
 			return true
@@ -148,23 +150,23 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *ReplClient) {
 
 		var str string
 		username := *message.From.Username
-		if !isAllowedId(username) { // check if this user is allowed to use this bot
+		if !isAllowedID(username) { // check if this user is allowed to use this bot
 			log.Printf("*** Received an update from an unauthorized user: @%s", username)
 
 			str = fmt.Sprintf("Your id: @%s is not allowed to use this bot.", username)
 		} else {
 			// 'is typing...'
-			b.SendChatAction(message.Chat.Id, telegram.ChatActionTyping)
+			b.SendChatAction(message.Chat.ID, telegram.ChatActionTyping)
 
 			if message.HasText() {
 				switch *message.Text {
-				case CommandStart:
-					str = MessageWelcome
-				case CommandReset:
+				case commandStart:
+					str = messageWelcome
+				case commandReset:
 					if received, err := client.Eval(ReplCommandReset); err == nil {
 						str = fmt.Sprintf("%s=> %s", received.Ns, received.Value)
 					} else {
-						str = MessageFailedToReset
+						str = messageFailedToReset
 					}
 				default:
 					if received, err := client.Eval(*message.Text); err == nil {
@@ -174,11 +176,11 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *ReplClient) {
 					}
 				}
 			} else if message.HasDocument() {
-				fileResult := b.GetFile(message.Document.FileId)
-				fileUrl := b.GetFileUrl(*fileResult.Result)
+				fileResult := b.GetFile(message.Document.FileID)
+				fileURL := b.GetFileURL(*fileResult.Result)
 
 				// download the file (as temporary)
-				if filepath, err := downloadTemporarily(fileUrl); err == nil {
+				if filepath, err := downloadTemporarily(fileURL); err == nil {
 					if received, err := client.LoadFile(filepath); err == nil {
 						str = stringFromResponse(received)
 
@@ -198,12 +200,12 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *ReplClient) {
 		}
 
 		// send message
-		if sent := b.SendMessage(message.Chat.Id, str, map[string]interface{}{
+		if sent := b.SendMessage(message.Chat.ID, str, map[string]interface{}{
 			"reply_markup": telegram.ReplyKeyboardMarkup{ // show keyboards
 				Keyboard: [][]telegram.KeyboardButton{
 					[]telegram.KeyboardButton{
 						telegram.KeyboardButton{
-							Text: CommandReset,
+							Text: commandReset,
 						},
 					},
 				},
@@ -222,7 +224,7 @@ func downloadTemporarily(url string) (filepath string, err error) {
 	tokens := strings.Split(url, "/")
 	filename := tokens[len(tokens)-1] // get the last path segment
 
-	filepath = path.Join(TempDir, filename)
+	filepath = path.Join(tempDir, filename)
 
 	var f *os.File
 	if f, err = os.Create(filepath); err == nil {
@@ -244,6 +246,7 @@ func downloadTemporarily(url string) (filepath string, err error) {
 // get string from REPL response
 func stringFromResponse(received resp) string {
 	strs := []string{}
+
 	if received.HasError() { // nREPL error
 		// join status strings
 		for _, s := range received.Status {
@@ -254,21 +257,23 @@ func stringFromResponse(received resp) string {
 		// show statuses and exceptions
 		if received.Ex == received.RootEx {
 			return fmt.Sprintf("%s: %s\n", status, received.Ex)
-		} else {
-			return fmt.Sprintf("%s: %s (%s)\n", status, received.Ex, received.RootEx)
-		}
-	} else { // no error
-		// if response has namespace,
-		if len(received.Ns) > 0 {
-			strs = append(strs, fmt.Sprintf("%s=> %s", received.Ns, received.Value))
 		}
 
-		// if response has a string from stdout,
-		if len(received.Out) > 0 {
-			strs = append(strs, fmt.Sprintf("%s", received.Out))
-		}
-
-		// join them
-		return strings.Join(strs, "\n")
+		return fmt.Sprintf("%s: %s (%s)\n", status, received.Ex, received.RootEx)
 	}
+
+	// no error
+
+	// if response has namespace,
+	if len(received.Ns) > 0 {
+		strs = append(strs, fmt.Sprintf("%s=> %s", received.Ns, received.Value))
+	}
+
+	// if response has a string from stdout,
+	if len(received.Out) > 0 {
+		strs = append(strs, fmt.Sprintf("%s", received.Out))
+	}
+
+	// join them
+	return strings.Join(strs, "\n")
 }
