@@ -51,6 +51,7 @@ type Resp struct {
 	RootEx  string        `name:"root-ex"` // root exception
 	Op      string        `name:"op"`      // operation
 	Status  []interface{} `name:"status"`  // status (on nREPL errors)
+	Err     string        `name:"err"`     // error
 }
 
 // HasError returns whether there was any nREPL error
