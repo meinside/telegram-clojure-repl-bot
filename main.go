@@ -11,7 +11,6 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 
@@ -55,18 +54,18 @@ var _allowedIds []string
 var _isVerbose bool
 
 // read config file
-func openConfig() (config, error) {
-	_, filename, _, _ := runtime.Caller(0) // = __FILE__
-
-	file, err := ioutil.ReadFile(filepath.Join(path.Dir(filename), configFilename))
+func openConfig() (conf config, err error) {
+	var exec string
+	exec, err = os.Executable()
 	if err == nil {
-		var conf config
-		err := json.Unmarshal(file, &conf)
+		var bytes []byte
+		bytes, err = ioutil.ReadFile(filepath.Join(filepath.Dir(exec), configFilename))
 		if err == nil {
-			return conf, nil
+			err = json.Unmarshal(bytes, &conf)
+			if err == nil {
+				return conf, nil
+			}
 		}
-
-		return config{}, err
 	}
 
 	return config{}, err
@@ -92,12 +91,17 @@ func init() {
 }
 
 // check if given Telegram id is allowed or not
-func isAllowedID(id string) bool {
+func isAllowedID(id *string) bool {
+	if id == nil {
+		return false
+	}
+
 	for _, v := range _allowedIds {
-		if v == id {
+		if v == *id {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -118,7 +122,7 @@ func main() {
 
 	// get info about this bot
 	if me := bot.GetMe(); me.Ok {
-		log.Printf("Starting bot: @%s (%s)", *me.Result.Username, me.Result.FirstName)
+		log.Printf("starting bot: @%s (%s)", *me.Result.Username, me.Result.FirstName)
 
 		// delete webhook (getting updates will not work when wehbook is set up)
 		if unhooked := bot.DeleteWebhook(); unhooked.Ok {
@@ -127,14 +131,14 @@ func main() {
 				if err == nil {
 					handleUpdate(b, update, client)
 				} else {
-					log.Printf("*** Error while receiving update (%s)", err.Error())
+					log.Printf("error while receiving update: %s", err.Error())
 				}
 			})
 		} else {
-			panic("Failed to delete webhook")
+			panic("failed to delete webhook")
 		}
 	} else {
-		panic("Failed to get info of the bot")
+		panic("failed to get info of the bot")
 	}
 }
 
@@ -148,12 +152,18 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *ReplClient) {
 			message = update.EditedMessage
 		}
 
-		var str string
-		username := *message.From.Username
+		var msg string
+		username := message.From.Username
 		if !isAllowedID(username) { // check if this user is allowed to use this bot
-			log.Printf("*** Received an update from an unauthorized user: @%s", username)
+			if username == nil {
+				log.Printf("received an update from an unauthorized user: '%s'", message.From.FirstName)
 
-			str = fmt.Sprintf("Your id: @%s is not allowed to use this bot.", username)
+				msg = fmt.Sprintf("'%s' is not allowed to use this bot.", message.From.FirstName)
+			} else {
+				log.Printf("received an update from an unauthorized user: @%s", *username)
+
+				msg = fmt.Sprintf("@%s is not allowed to use this bot.", *username)
+			}
 		} else {
 			// 'is typing...'
 			b.SendChatAction(message.Chat.ID, telegram.ChatActionTyping)
@@ -161,18 +171,18 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *ReplClient) {
 			if message.HasText() {
 				switch *message.Text {
 				case commandStart:
-					str = messageWelcome
+					msg = messageWelcome
 				case commandReset:
 					if received, err := client.Eval(ReplCommandReset); err == nil {
-						str = fmt.Sprintf("%s=> %s", received.Ns, received.Value)
+						msg = fmt.Sprintf("%s=> %s", received.Ns, received.Value)
 					} else {
-						str = messageFailedToReset
+						msg = messageFailedToReset
 					}
 				default:
 					if received, err := client.Eval(*message.Text); err == nil {
-						str = stringFromResponse(received)
+						msg = stringFromResponse(received)
 					} else {
-						str = fmt.Sprintf("Error: %s", err)
+						msg = fmt.Sprintf("Error: %s", err)
 					}
 				}
 			} else if message.HasDocument() {
@@ -182,25 +192,25 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *ReplClient) {
 				// download the file (as temporary)
 				if filepath, err := downloadTemporarily(fileURL); err == nil {
 					if received, err := client.LoadFile(filepath); err == nil {
-						str = stringFromResponse(received)
+						msg = stringFromResponse(received)
 
 						// and delete it
 						if err := os.Remove(filepath); err != nil {
 							log.Printf("*** Failed to delete file %s: %s", filepath, err)
 						}
 					} else {
-						str = fmt.Sprintf("Failed load file: %s", err)
+						msg = fmt.Sprintf("Failed load file: %s", err)
 					}
 				} else {
-					str = fmt.Sprintf("Failed to download the document: %s", err)
+					msg = fmt.Sprintf("Failed to download the document: %s", err)
 				}
 			} else {
-				str = fmt.Sprintf("Error: couldn't process your message.")
+				msg = fmt.Sprintf("Error: couldn't process your message.")
 			}
 		}
 
 		// send message
-		if sent := b.SendMessage(message.Chat.ID, str, map[string]interface{}{
+		if sent := b.SendMessage(message.Chat.ID, msg, map[string]interface{}{
 			"reply_markup": telegram.ReplyKeyboardMarkup{ // show keyboards
 				Keyboard: [][]telegram.KeyboardButton{
 					[]telegram.KeyboardButton{
@@ -244,15 +254,15 @@ func downloadTemporarily(url string) (filepath string, err error) {
 }
 
 // get string from REPL response
-func stringFromResponse(received resp) string {
-	strs := []string{}
+func stringFromResponse(received Resp) string {
+	msgs := []string{}
 
 	if received.HasError() { // nREPL error
 		// join status strings
 		for _, s := range received.Status {
-			strs = append(strs, fmt.Sprintf("%v", s))
+			msgs = append(msgs, fmt.Sprintf("%v", s))
 		}
-		status := strings.Join(strs, ", ")
+		status := strings.Join(msgs, ", ")
 
 		// show statuses and exceptions
 		if received.Ex == received.RootEx {
@@ -266,14 +276,14 @@ func stringFromResponse(received resp) string {
 
 	// if response has namespace,
 	if len(received.Ns) > 0 {
-		strs = append(strs, fmt.Sprintf("%s=> %s", received.Ns, received.Value))
+		msgs = append(msgs, fmt.Sprintf("%s=> %s", received.Ns, received.Value))
 	}
 
 	// if response has a string from stdout,
 	if len(received.Out) > 0 {
-		strs = append(strs, fmt.Sprintf("%s", received.Out))
+		msgs = append(msgs, fmt.Sprintf("%s", received.Out))
 	}
 
 	// join them
-	return strings.Join(strs, "\n")
+	return strings.Join(msgs, "\n")
 }
