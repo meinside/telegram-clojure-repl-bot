@@ -284,6 +284,11 @@ func stringFromResponse(received Resp) string {
 		msgs = append(msgs, fmt.Sprintf("%s", received.Out))
 	}
 
+	// if response has an error,
+	if len(received.Err) > 0 {
+		msgs = append(msgs, fmt.Sprintf("%s", received.Err))
+	}
+
 	// join them
 	return strings.Join(msgs, "\n")
 }
