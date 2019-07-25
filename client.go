@@ -1,5 +1,7 @@
 package main
 
+// nREPL client codes
+
 import (
 	"bytes"
 	"fmt"
@@ -16,13 +18,12 @@ import (
 )
 
 const (
-	ReplConnectTimeoutSeconds = 10
-	ReplBootupTimeoutSeconds  = 60
-	ProcessTimeoutSeconds     = 3
+	replConnectTimeoutSeconds = 10
+	replBootupTimeoutSeconds  = 60
 
-	NumBytes            = 1024
-	NumRetries          = 128
-	TimeoutMilliseconds = 100
+	numBytes            = 1024
+	numRetries          = 128
+	timeoutMilliseconds = 100
 )
 
 type cmd struct {
@@ -30,15 +31,18 @@ type cmd struct {
 	code string
 }
 
+// Operations and commands
 const (
+	// operations
 	OpEval = "eval"
 
+	// commands
 	ReplCommandReset    = `(map #(ns-unmap *ns* %) (keys (ns-interns *ns*)))`
 	ReplCommandShutdown = `(System/exit 0)`
 )
 
-// response from nREPL
-type resp struct {
+// Resp is a response from nREPL
+type Resp struct {
 	Ns      string        `name:"ns"`      // namespace
 	Out     string        `name:"out"`     // stdout
 	Session string        `name:"session"` // session
@@ -49,8 +53,8 @@ type resp struct {
 	Status  []interface{} `name:"status"`  // status (on nREPL errors)
 }
 
-// if there were any nREPL error, it will be placed in 'Status'
-func (r *resp) HasError() bool {
+// HasError returns whether there was any nREPL error
+func (r *Resp) HasError() bool {
 	return len(r.Status) > 0
 }
 
@@ -62,7 +66,7 @@ func init() {
 
 	// read 'name' tags
 	// https://sosedoff.com/2016/07/16/golang-struct-tags.html
-	t := reflect.TypeOf(resp{})
+	t := reflect.TypeOf(Resp{})
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		tag := field.Tag.Get("name")
@@ -75,7 +79,7 @@ func init() {
 
 }
 
-// nREPL client
+// ReplClient is a nREPL client
 type ReplClient struct {
 	LeinPath string
 	Host     string
@@ -86,7 +90,7 @@ type ReplClient struct {
 	sync.Mutex
 }
 
-// get a new client
+// NewClient returns a new client
 func NewClient(leinPath, host string, port int) *ReplClient {
 	addr := fmt.Sprintf("%s:%d", host, port)
 
@@ -98,17 +102,17 @@ func NewClient(leinPath, host string, port int) *ReplClient {
 	}
 
 	// wait for nREPL
-	for i := 0; i < ReplConnectTimeoutSeconds; i++ {
+	for i := 0; i < replConnectTimeoutSeconds; i++ {
 		time.Sleep(1 * time.Second)
 		if conn, err := net.Dial("tcp", addr); err == nil {
 			client.conn = conn
 
-			log.Printf("There is an existing nREPL on: %s\n", addr)
+			log.Printf("there is an existing nREPL on: %s\n", addr)
 			break
 		}
 
-		if i == (ReplConnectTimeoutSeconds - 1) {
-			log.Printf("Failed to connect to nREPL, trying to launch: %s\n", leinPath)
+		if i == (replConnectTimeoutSeconds - 1) {
+			log.Printf("failed to connect to nREPL, trying to launch: %s\n", leinPath)
 
 			// start nREPL server (ex: $ lein repl :headless :port 9999)
 			replCmd := exec.Command(leinPath, "repl", ":headless", ":port", strconv.Itoa(port))
@@ -118,20 +122,20 @@ func NewClient(leinPath, host string, port int) *ReplClient {
 				}
 			}(replCmd)
 
-			log.Printf("Waiting for nREPL to bootup...\n")
+			log.Printf("waiting for nREPL to bootup...\n")
 
 			// wait for nREPL
-			for i := 0; i < ReplBootupTimeoutSeconds; i++ {
+			for i := 0; i < replBootupTimeoutSeconds; i++ {
 				time.Sleep(1 * time.Second)
 				if conn, err := net.Dial("tcp", addr); err == nil {
 					client.conn = conn
 
-					log.Printf("Connected to nREPL on: %s\n", addr)
+					log.Printf("connected to nREPL on: %s\n", addr)
 					break
 				}
 
-				if i == (ReplBootupTimeoutSeconds - 1) {
-					panic("Failed to connect to launched nREPL: " + addr)
+				if i == (replBootupTimeoutSeconds - 1) {
+					panic("failed to connect to launched nREPL: " + addr)
 				}
 			}
 		}
@@ -140,8 +144,8 @@ func NewClient(leinPath, host string, port int) *ReplClient {
 	return &client
 }
 
-// evaluate given code
-func (c *ReplClient) Eval(code string) (received resp, err error) {
+// Eval evaluates given code
+func (c *ReplClient) Eval(code string) (received Resp, err error) {
 	c.Lock()
 	received, err = c.sendAndRecv(cmd{op: OpEval, code: code})
 	c.Unlock()
@@ -149,8 +153,8 @@ func (c *ReplClient) Eval(code string) (received resp, err error) {
 	return received, err
 }
 
-// load given file
-func (c *ReplClient) LoadFile(filepath string) (received resp, err error) {
+// LoadFile loads given file
+func (c *ReplClient) LoadFile(filepath string) (received Resp, err error) {
 	c.Lock()
 	received, err = c.sendAndRecv(cmd{op: OpEval, code: fmt.Sprintf(`(load-file "%s")`, filepath)})
 	c.Unlock()
@@ -158,59 +162,59 @@ func (c *ReplClient) LoadFile(filepath string) (received resp, err error) {
 	return received, err
 }
 
-// best place for cleaning things up
+// Shutdown shuts down the REPL, it will be the best place for cleaning things up
 func (c *ReplClient) Shutdown() {
 	c.Lock()
 
 	var err error
 
 	// shutdown nREPL
-	log.Printf("Sending shutdown command to REPL...\n")
+	log.Printf("sending shutdown command to REPL...\n")
 	_, err = c.sendAndRecv(cmd{op: OpEval, code: ReplCommandShutdown})
 	if err != nil {
-		log.Printf("Failed to sending shutdown command to REPL: %s\n", err)
+		log.Printf("failed to sending shutdown command to REPL: %s\n", err)
 	}
 
 	// close connection to nREPL
-	log.Printf("Closing connection to REPL...\n")
+	log.Printf("closing connection to REPL...\n")
 	err = c.conn.Close()
 	if err != nil {
-		log.Printf("Failed to close connection to REPL: %s\n", err)
+		log.Printf("failed to close connection to REPL: %s\n", err)
 	}
 
 	c.Unlock()
 }
 
 // send request and receive response from nREPL
-func (c *ReplClient) sendAndRecv(request interface{}) (received resp, err error) {
+func (c *ReplClient) sendAndRecv(request interface{}) (received Resp, err error) {
 	buffer := bytes.NewBuffer([]byte{})
 
 	// set read timeout
-	if err = c.conn.SetReadDeadline(time.Now().Add(TimeoutMilliseconds * time.Millisecond)); err != nil {
-		log.Printf("Error while setting read deadline: %s\n", err)
+	if err = c.conn.SetReadDeadline(time.Now().Add(timeoutMilliseconds * time.Millisecond)); err != nil {
+		log.Printf("error while setting read deadline: %s\n", err)
 
-		return resp{}, err
+		return Resp{}, err
 	}
 
 	// send BEncoded request
 	if err = bencode.Marshal(c.conn, request); err == nil {
 		numRead := 0
-		buf := make([]byte, NumBytes)
+		buf := make([]byte, numBytes)
 
-		for n := 0; n < NumRetries; n++ {
+		for n := 0; n < numRetries; n++ {
 			if numRead, err = c.conn.Read(buf); err == nil {
 				if numRead > 0 {
 					buffer.Write(buf[:numRead])
 				}
 			} else {
 				if err != io.EOF && !(err.(net.Error)).Timeout() {
-					log.Printf("Error while reading bytes: %s\n", err)
+					log.Printf("error while reading bytes: %s\n", err)
 					break
 				}
 			}
 		}
 	} else {
-		log.Printf("Error while writing request: %s\n", err)
+		log.Printf("error while writing request: %s\n", err)
 	}
 
 	// only when read buffer is filled up,
@@ -219,21 +223,21 @@ func (c *ReplClient) sendAndRecv(request interface{}) (received resp, err error)
 		if decoded, err = bencode.Decode(buffer); err == nil {
 			switch decoded.(type) {
 			case map[string]interface{}:
-				response := resp{}
+				response := Resp{}
 				if err = fillRespStruct(&response, decoded.(map[string]interface{})); err == nil {
 					return response, nil
-				} else {
-					log.Printf("Failed to fill struct: %s\n", err)
 				}
+
+				log.Printf("failed to fill struct: %s\n", err)
 			default:
-				log.Printf("Received non-expected type: %T\n", decoded)
+				log.Printf("received non-expected type: %T\n", decoded)
 			}
 		} else {
-			log.Printf("Error while decoding BEncode: %s (%s)\n", err, buffer.String())
+			log.Printf("error while decoding BEncode: %s (%s)\n", err, buffer.String())
 		}
 	}
 
-	return resp{}, err
+	return Resp{}, err
 }
 
 // fill fields of given struct
@@ -259,17 +263,17 @@ func _setRespField(obj interface{}, name string, value interface{}) error {
 	structFieldValue := structValue.FieldByName(name)
 
 	if !structFieldValue.IsValid() {
-		return fmt.Errorf("No such field: '%s'", name)
+		return fmt.Errorf("no such field: '%s'", name)
 	}
 	if !structFieldValue.CanSet() {
-		return fmt.Errorf("Cannot set '%s' field value", name)
+		return fmt.Errorf("cannot set '%s' field value", name)
 	}
 
 	structFieldType := structFieldValue.Type()
 	val := reflect.ValueOf(value)
 
 	if structFieldType != val.Type() {
-		return fmt.Errorf("Provided value type doesn't match: %+v and %+v", structFieldType, val.Type())
+		return fmt.Errorf("provided value type doesn't match: %+v and %+v", structFieldType, val.Type())
 	}
 
 	structFieldValue.Set(val)
