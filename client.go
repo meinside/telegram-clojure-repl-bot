@@ -37,8 +37,9 @@ const (
 	OpEval = "eval"
 
 	// commands
-	ReplCommandReset    = `(map #(ns-unmap *ns* %) (keys (ns-interns *ns*)))`
-	ReplCommandShutdown = `(System/exit 0)`
+	ReplCommandRequireRepl = `(require '[clojure.repl :refer :all])`
+	ReplCommandReset       = `(map #(ns-unmap *ns* %) (keys (ns-interns *ns*)))`
+	ReplCommandShutdown    = `(System/exit 0)`
 )
 
 // Resp is a response from nREPL
@@ -132,6 +133,9 @@ func NewClient(leinPath, host string, port int) *ReplClient {
 					client.conn = conn
 
 					log.Printf("connected to nREPL on: %s\n", addr)
+
+					client.Initialize()
+
 					break
 				}
 
@@ -143,6 +147,15 @@ func NewClient(leinPath, host string, port int) *ReplClient {
 	}
 
 	return &client
+}
+
+// Initialize initializes this client
+func (c *ReplClient) Initialize() {
+	if _, err := c.Eval(ReplCommandRequireRepl); err != nil {
+		log.Printf("failed to require `clojure.repl`")
+	}
+
+	// TODO - add more initialization codes here
 }
 
 // Eval evaluates given code
