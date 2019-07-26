@@ -182,7 +182,7 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *ReplClient) {
 					if received, err := client.Eval(*message.Text); err == nil {
 						msg = stringFromResponse(received)
 					} else {
-						msg = fmt.Sprintf("Error: %s", err)
+						msg = fmt.Sprintf("error: %s", err)
 					}
 				}
 			} else if message.HasDocument() {
@@ -196,16 +196,16 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *ReplClient) {
 
 						// and delete it
 						if err := os.Remove(filepath); err != nil {
-							log.Printf("*** Failed to delete file %s: %s", filepath, err)
+							log.Printf("failed to delete file %s: %s", filepath, err)
 						}
 					} else {
-						msg = fmt.Sprintf("Failed load file: %s", err)
+						msg = fmt.Sprintf("failed to load file: %s", err)
 					}
 				} else {
-					msg = fmt.Sprintf("Failed to download the document: %s", err)
+					msg = fmt.Sprintf("failed to download the document: %s", err)
 				}
 			} else {
-				msg = fmt.Sprintf("Error: couldn't process your message.")
+				msg = fmt.Sprintf("error: couldn't process your message.")
 			}
 		}
 
@@ -222,10 +222,10 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *ReplClient) {
 				ResizeKeyboard: true,
 			},
 		}); !sent.Ok {
-			log.Printf("*** Failed to send message: %s", *sent.Description)
+			log.Printf("failed to send message: %s", *sent.Description)
 		}
 	} else {
-		log.Printf("*** Received update has no message")
+		log.Printf("received update has no processable message")
 	}
 }
 
