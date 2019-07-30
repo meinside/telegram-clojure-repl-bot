@@ -17,6 +17,7 @@ import (
 	bencode "github.com/jackpal/bencode-go"
 )
 
+// constants
 const (
 	replConnectTimeoutSeconds = 10
 	replBootupTimeoutSeconds  = 60
@@ -24,6 +25,8 @@ const (
 	numBytes            = 1024
 	numRetries          = 128
 	timeoutMilliseconds = 100
+
+	replProfileName = "headless-repl"
 )
 
 type cmd struct {
@@ -116,8 +119,8 @@ func NewClient(leinPath, host string, port int) *ReplClient {
 		if i == (replConnectTimeoutSeconds - 1) {
 			log.Printf("failed to connect to nREPL, trying to launch: %s\n", leinPath)
 
-			// start nREPL server (ex: $ lein repl :headless :port 9999)
-			replCmd := exec.Command(leinPath, "repl", ":headless", ":port", strconv.Itoa(port))
+			// start nREPL server
+			replCmd := exec.Command(leinPath, "with-profile", replProfileName, "repl", ":headless", ":port", strconv.Itoa(port))
 			go func(cmd *exec.Cmd) {
 				if err := cmd.Run(); err != nil {
 					panic(err)
@@ -186,7 +189,7 @@ func (c *ReplClient) Shutdown() {
 	log.Printf("sending shutdown command to REPL...\n")
 	_, err = c.sendAndRecv(cmd{op: OpEval, code: ReplCommandShutdown})
 	if err != nil {
-		log.Printf("failed to sending shutdown command to REPL: %s\n", err)
+		log.Printf("failed to send shutdown command to REPL: %s\n", err)
 	}
 
 	// close connection to nREPL

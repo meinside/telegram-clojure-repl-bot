@@ -1,0 +1,22 @@
+;; (sample) .lein/profiles.clj
+
+{:user {
+        ;; plugins
+        :plugins [[lein-exec "0.3.7"] [lein-pprint "1.2.0"] [cider/cider-nrepl "0.21.1"] [lein-ancient "0.6.15"]]
+
+        ;; dependencies
+        :dependencies [[slamhound "1.5.5"]]
+
+        ;; global variables
+        :global-vars {*print-length* 20}}
+
+ ;; profile for headless nREPL
+ :headless-repl {
+                 ;; plugins
+                 :plugins []
+
+                 ;; dependencies
+                 :dependencies []
+
+                 ;; global variables
+                 :global-vars {*print-length* 20}}}
