@@ -1,4 +1,4 @@
-package main
+package repl
 
 // nREPL client codes
 
@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -40,9 +41,9 @@ const (
 	OpEval = "eval"
 
 	// commands
-	ReplCommandRequireRepl = `(require '[clojure.repl :refer :all])`
-	ReplCommandReset       = `(map #(ns-unmap *ns* %) (keys (ns-interns *ns*)))`
-	ReplCommandShutdown    = `(System/exit 0)`
+	CommandRequireRepl = `(require '[clojure.repl :refer :all])`
+	CommandReset       = `(map #(ns-unmap *ns* %) (keys (ns-interns *ns*)))`
+	CommandShutdown    = `(System/exit 0)`
 )
 
 // Resp is a response from nREPL
@@ -84,11 +85,13 @@ func init() {
 
 }
 
-// ReplClient is a nREPL client
-type ReplClient struct {
+// Client is a nREPL client
+type Client struct {
 	LeinPath string
 	Host     string
 	Port     int
+
+	Verbose bool
 
 	conn net.Conn
 
@@ -96,10 +99,10 @@ type ReplClient struct {
 }
 
 // NewClient returns a new client
-func NewClient(leinPath, host string, port int) *ReplClient {
+func NewClient(leinPath, host string, port int) *Client {
 	addr := fmt.Sprintf("%s:%d", host, port)
 
-	client := ReplClient{
+	client := Client{
 		LeinPath: leinPath,
 		Host:     host,
 		Port:     port,
@@ -153,8 +156,8 @@ func NewClient(leinPath, host string, port int) *ReplClient {
 }
 
 // Initialize initializes this client
-func (c *ReplClient) Initialize() {
-	if _, err := c.Eval(ReplCommandRequireRepl); err != nil {
+func (c *Client) Initialize() {
+	if _, err := c.Eval(CommandRequireRepl); err != nil {
 		log.Printf("failed to require `clojure.repl`")
 	}
 
@@ -162,16 +165,26 @@ func (c *ReplClient) Initialize() {
 }
 
 // Eval evaluates given code
-func (c *ReplClient) Eval(code string) (received Resp, err error) {
+func (c *Client) Eval(code string) (received Resp, err error) {
 	c.Lock()
+
+	if c.Verbose {
+		log.Printf("evaluating: %s", code)
+	}
+
 	received, err = c.sendAndRecv(cmd{op: OpEval, code: code})
+
+	if c.Verbose {
+		log.Printf("evaluated: %s", received)
+	}
+
 	c.Unlock()
 
 	return received, err
 }
 
 // LoadFile loads given file
-func (c *ReplClient) LoadFile(filepath string) (received Resp, err error) {
+func (c *Client) LoadFile(filepath string) (received Resp, err error) {
 	c.Lock()
 	received, err = c.sendAndRecv(cmd{op: OpEval, code: fmt.Sprintf(`(load-file "%s")`, filepath)})
 	c.Unlock()
@@ -180,14 +193,14 @@ func (c *ReplClient) LoadFile(filepath string) (received Resp, err error) {
 }
 
 // Shutdown shuts down the REPL, it will be the best place for cleaning things up
-func (c *ReplClient) Shutdown() {
+func (c *Client) Shutdown() {
 	c.Lock()
 
 	var err error
 
 	// shutdown nREPL
 	log.Printf("sending shutdown command to REPL...\n")
-	_, err = c.sendAndRecv(cmd{op: OpEval, code: ReplCommandShutdown})
+	_, err = c.sendAndRecv(cmd{op: OpEval, code: CommandShutdown})
 	if err != nil {
 		log.Printf("failed to send shutdown command to REPL: %s\n", err)
 	}
@@ -203,7 +216,7 @@ func (c *ReplClient) Shutdown() {
 }
 
 // send request and receive response from nREPL
-func (c *ReplClient) sendAndRecv(request interface{}) (received Resp, err error) {
+func (c *Client) sendAndRecv(request interface{}) (received Resp, err error) {
 	buffer := bytes.NewBuffer([]byte{})
 
 	// set read timeout
@@ -296,4 +309,44 @@ func _setRespField(obj interface{}, name string, value interface{}) error {
 	structFieldValue.Set(val)
 
 	return nil
+}
+
+// RespToString converts REPL response to string
+func RespToString(received Resp) string {
+	msgs := []string{}
+
+	if received.HasError() { // nREPL error
+		// join status strings
+		for _, s := range received.Status {
+			msgs = append(msgs, fmt.Sprintf("%v", s))
+		}
+		status := strings.Join(msgs, ", ")
+
+		// show statuses and exceptions
+		if received.Ex == received.RootEx {
+			return fmt.Sprintf("%s: %s\n", status, received.Ex)
+		}
+
+		return fmt.Sprintf("%s: %s (%s)\n", status, received.Ex, received.RootEx)
+	}
+
+	// no error
+
+	// if response has namespace,
+	if len(received.Ns) > 0 {
+		msgs = append(msgs, fmt.Sprintf("%s=> %s", received.Ns, received.Value))
+	}
+
+	// if response has a string from stdout,
+	if len(received.Out) > 0 {
+		msgs = append(msgs, fmt.Sprintf("%s", received.Out))
+	}
+
+	// if response has an error,
+	if len(received.Err) > 0 {
+		msgs = append(msgs, fmt.Sprintf("%s", received.Err))
+	}
+
+	// join them
+	return strings.Join(msgs, "\n")
 }

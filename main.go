@@ -15,6 +15,7 @@ import (
 	"syscall"
 
 	telegram "github.com/meinside/telegram-bot-go"
+	repl "github.com/meinside/telegram-bot-repl/repl"
 )
 
 const (
@@ -106,12 +107,13 @@ func isAllowedID(id *string) bool {
 }
 
 func main() {
-	client := NewClient(_leinExecPath, _replHost, _replPort)
+	client := repl.NewClient(_leinExecPath, _replHost, _replPort)
+	client.Verbose = _isVerbose
 
 	// catch SIGINT and SIGTERM and terminate gracefully
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
-	go func(client *ReplClient) {
+	go func(client *repl.Client) {
 		<-sig
 		client.Shutdown() // shutdown client
 		os.Exit(1)
@@ -143,7 +145,7 @@ func main() {
 }
 
 // handle received update from Telegram server
-func handleUpdate(b *telegram.Bot, update telegram.Update, client *ReplClient) {
+func handleUpdate(b *telegram.Bot, update telegram.Update, client *repl.Client) {
 	if update.HasMessage() || update.HasEditedMessage() {
 		var message *telegram.Message
 		if update.HasMessage() {
@@ -173,14 +175,14 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *ReplClient) {
 				case commandStart:
 					msg = messageWelcome
 				case commandReset:
-					if received, err := client.Eval(ReplCommandReset); err == nil {
+					if received, err := client.Eval(repl.CommandReset); err == nil {
 						msg = fmt.Sprintf("%s=> %s", received.Ns, received.Value)
 					} else {
 						msg = messageFailedToReset
 					}
 				default:
 					if received, err := client.Eval(*message.Text); err == nil {
-						msg = stringFromResponse(received)
+						msg = repl.RespToString(received)
 					} else {
 						msg = fmt.Sprintf("error: %s", err)
 					}
@@ -192,7 +194,7 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *ReplClient) {
 				// download the file (as temporary)
 				if filepath, err := downloadTemporarily(fileURL); err == nil {
 					if received, err := client.LoadFile(filepath); err == nil {
-						msg = stringFromResponse(received)
+						msg = repl.RespToString(received)
 
 						// and delete it
 						if err := os.Remove(filepath); err != nil {
@@ -251,44 +253,4 @@ func downloadTemporarily(url string) (filepath string, err error) {
 	}
 
 	return "", err
-}
-
-// get string from REPL response
-func stringFromResponse(received Resp) string {
-	msgs := []string{}
-
-	if received.HasError() { // nREPL error
-		// join status strings
-		for _, s := range received.Status {
-			msgs = append(msgs, fmt.Sprintf("%v", s))
-		}
-		status := strings.Join(msgs, ", ")
-
-		// show statuses and exceptions
-		if received.Ex == received.RootEx {
-			return fmt.Sprintf("%s: %s\n", status, received.Ex)
-		}
-
-		return fmt.Sprintf("%s: %s (%s)\n", status, received.Ex, received.RootEx)
-	}
-
-	// no error
-
-	// if response has namespace,
-	if len(received.Ns) > 0 {
-		msgs = append(msgs, fmt.Sprintf("%s=> %s", received.Ns, received.Value))
-	}
-
-	// if response has a string from stdout,
-	if len(received.Out) > 0 {
-		msgs = append(msgs, fmt.Sprintf("%s", received.Out))
-	}
-
-	// if response has an error,
-	if len(received.Err) > 0 {
-		msgs = append(msgs, fmt.Sprintf("%s", received.Err))
-	}
-
-	// join them
-	return strings.Join(msgs, "\n")
 }
