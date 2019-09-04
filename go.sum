@@ -1,5 +1,5 @@
 github.com/jackpal/bencode-go v0.0.0-20180813173944-227668e840fa h1:ym9I4Q1lJG8nu+j5R2H6mHOfVjYbSiwUOzh/AFs3Xfs=
 github.com/jackpal/bencode-go v0.0.0-20180813173944-227668e840fa/go.mod h1:5FSBQ74yhCl5oQ+QxRPYzWMONFnxbL68/23eezsBI5c=
-github.com/meinside/telegram-bot-go v0.0.16 h1:XEikHu2c+pYOpqRFhHAtZmPL+ZMmVhGBwBcd+Y0Ifo8=
-github.com/meinside/telegram-bot-go v0.0.16/go.mod h1:gS/BXucqjU9q4BX5W1OlsQ3BoOlJqGOTPvAG9+4+TsA=
-github.com/meinside/wasm-helper-go v0.0.4/go.mod h1:rrqb+xFboJK0/No8NAGkTTk1Y4qEUYHd4BFpUQ3g3wY=
+github.com/meinside/telegram-bot-go v0.0.17 h1:95eICPmnkH6iTSF2x8MvSemkt9rQagJ6S1hNVBSqhv0=
+github.com/meinside/telegram-bot-go v0.0.17/go.mod h1:ewucpWysa/qbRTuxeV94CqAEynHhpKucR13mVnoOXtc=
+github.com/meinside/wasm-helper-go v0.0.5/go.mod h1:Seqf/Sk8HL7TM8urkLx3IakDRFq2euF2ssa5j5V3onI=
