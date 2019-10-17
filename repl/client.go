@@ -25,7 +25,7 @@ const (
 
 	numBytes            = 1024
 	numRetries          = 128
-	timeoutMilliseconds = 100
+	timeoutMilliseconds = 30 * 1000 // 30 seconds
 
 	replProfileName = "headless-repl"
 )
