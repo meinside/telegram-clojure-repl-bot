@@ -23,9 +23,9 @@ const (
 	replConnectTimeoutSeconds = 10
 	replBootupTimeoutSeconds  = 60
 
-	numBytes            = 1024
-	numRetries          = 128
-	timeoutMilliseconds = 30 * 1000 // 30 seconds
+	numBytes            = 10 * 1024 // 10 kb
+	numRetries          = 10        // retry upto 10 times
+	timeoutMilliseconds = 1000      // 1 second
 
 	replProfileName = "headless-repl"
 )
