@@ -82,7 +82,6 @@ func init() {
 			respKeyMaps[field.Name] = field.Name
 		}
 	}
-
 }
 
 // Client is a nREPL client
@@ -115,12 +114,12 @@ func NewClient(leinPath, host string, port int) *Client {
 		if conn, err := net.Dial("tcp", addr); err == nil {
 			client.conn = conn
 
-			log.Printf("there is an existing nREPL on: %s\n", addr)
+			log.Printf("there is an existing nREPL on: %s", addr)
 			break
 		}
 
 		if i == (replConnectTimeoutSeconds - 1) {
-			log.Printf("failed to connect to nREPL, trying to launch: %s\n", leinPath)
+			log.Printf("failed to connect to nREPL, trying to launch: %s", leinPath)
 
 			// start nREPL server
 			replCmd := exec.Command(leinPath, "with-profile", replProfileName, "repl", ":headless", ":port", strconv.Itoa(port))
@@ -130,7 +129,7 @@ func NewClient(leinPath, host string, port int) *Client {
 				}
 			}(replCmd)
 
-			log.Printf("waiting for nREPL to bootup...\n")
+			log.Printf("waiting for nREPL to bootup...")
 
 			// wait for nREPL
 			for i := 0; i < replBootupTimeoutSeconds; i++ {
@@ -138,7 +137,7 @@ func NewClient(leinPath, host string, port int) *Client {
 				if conn, err := net.Dial("tcp", addr); err == nil {
 					client.conn = conn
 
-					log.Printf("connected to nREPL on: %s\n", addr)
+					log.Printf("connected to nREPL on: %s", addr)
 
 					client.Initialize()
 
@@ -199,17 +198,17 @@ func (c *Client) Shutdown() {
 	var err error
 
 	// shutdown nREPL
-	log.Printf("sending shutdown command to REPL...\n")
+	log.Printf("sending shutdown command to REPL...")
 	_, err = c.sendAndRecv(cmd{op: OpEval, code: CommandShutdown})
 	if err != nil {
-		log.Printf("failed to send shutdown command to REPL: %s\n", err)
+		log.Printf("failed to send shutdown command to REPL: %s", err)
 	}
 
 	// close connection to nREPL
-	log.Printf("closing connection to REPL...\n")
+	log.Printf("closing connection to REPL...")
 	err = c.conn.Close()
 	if err != nil {
-		log.Printf("failed to close connection to REPL: %s\n", err)
+		log.Printf("failed to close connection to REPL: %s", err)
 	}
 
 	c.Unlock()
@@ -221,7 +220,7 @@ func (c *Client) sendAndRecv(request interface{}) (received Resp, err error) {
 
 	// set read timeout
 	if err = c.conn.SetReadDeadline(time.Now().Add(timeoutMilliseconds * time.Millisecond)); err != nil {
-		log.Printf("error while setting read deadline: %s\n", err)
+		log.Printf("error while setting read deadline: %s", err)
 
 		return Resp{}, err
 	}
@@ -238,13 +237,18 @@ func (c *Client) sendAndRecv(request interface{}) (received Resp, err error) {
 				}
 			} else {
 				if err != io.EOF && !(err.(net.Error)).Timeout() {
-					log.Printf("error while reading bytes: %s\n", err)
+					log.Printf("error while reading bytes: %s", err)
 					break
 				}
 			}
 		}
 	} else {
-		log.Printf("error while writing request: %s\n", err)
+		log.Printf("error while writing request: %s", err)
+	}
+
+	// log for debugging
+	if c.Verbose {
+		log.Printf(">>> read buffer: %+v", buffer)
 	}
 
 	// only when read buffer is filled up,
@@ -252,18 +256,26 @@ func (c *Client) sendAndRecv(request interface{}) (received Resp, err error) {
 		var decoded interface{}
 		if decoded, err = bencode.Decode(buffer); err == nil {
 			switch decoded.(type) {
+			case string:
+				return Resp{Value: decoded.(string)}, nil
+			case int64:
+				return Resp{Value: fmt.Sprintf("%d", decoded.(int64))}, nil
+			case uint64:
+				return Resp{Value: fmt.Sprintf("%d", decoded.(uint64))}, nil
+			case []interface{}:
+				return Resp{Value: fmt.Sprintf("%v", decoded)}, nil
 			case map[string]interface{}:
 				response := Resp{}
 				if err = fillRespStruct(&response, decoded.(map[string]interface{})); err == nil {
 					return response, nil
 				}
 
-				log.Printf("failed to fill struct: %s\n", err)
+				log.Printf("failed to fill struct: %s", err)
 			default:
-				log.Printf("received non-expected type: %T\n", decoded)
+				log.Printf("received non-expected type: %T", decoded)
 			}
 		} else {
-			log.Printf("error while decoding BEncode: %s (%s)\n", err, buffer.String())
+			log.Printf("error while decoding BEncode: %s (%s)", err, buffer.String())
 		}
 	}
 
