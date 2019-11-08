@@ -38,7 +38,7 @@ const (
 
 type config struct {
 	APIToken        string   `json:"api_token"`
-	LeinExecPath    string   `json:"lein_exec_path"`
+	CljExecPath     string   `json:"clj_exec_path"`
 	ReplHost        string   `json:"repl_host"`
 	ReplPort        int      `json:"repl_port"`
 	AllowedIds      []string `json:"allowed_ids"`
@@ -47,7 +47,7 @@ type config struct {
 }
 
 var _apiToken string
-var _leinExecPath string
+var _cljExecPath string
 var _replHost string
 var _replPort int
 var _monitorInterval int
@@ -78,7 +78,7 @@ func init() {
 		panic(err)
 	} else {
 		_apiToken = conf.APIToken
-		_leinExecPath = conf.LeinExecPath
+		_cljExecPath = conf.CljExecPath
 		_replHost = conf.ReplHost
 		_replPort = conf.ReplPort
 
@@ -107,7 +107,7 @@ func isAllowedID(id *string) bool {
 }
 
 func main() {
-	client := repl.NewClient(_leinExecPath, _replHost, _replPort)
+	client := repl.NewClient(_cljExecPath, _replHost, _replPort)
 	client.Verbose = _isVerbose
 
 	// catch SIGINT and SIGTERM and terminate gracefully
@@ -176,7 +176,8 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *repl.Client) 
 					msg = messageWelcome
 				case commandReset:
 					if received, err := client.Eval(repl.CommandReset); err == nil {
-						msg = fmt.Sprintf("%s=> %s", received.Ns, received.Value)
+						r := received[0]
+						msg = fmt.Sprintf("%s=> %s", r.Namespace, r.Value)
 					} else {
 						msg = messageFailedToReset
 					}
