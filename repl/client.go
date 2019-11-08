@@ -1,6 +1,6 @@
 package repl
 
-// nREPL client codes
+// PREPL client codes
 
 import (
 	"bytes"
@@ -8,14 +8,13 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
 	"os/exec"
-	"reflect"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	bencode "github.com/jackpal/bencode-go"
+	"olympos.io/encoding/edn"
 )
 
 // constants
@@ -26,14 +25,7 @@ const (
 	numBytes            = 10 * 1024 // 10 kb
 	numRetries          = 10        // retry upto 10 times
 	timeoutMilliseconds = 1000      // 1 second
-
-	replProfileName = "headless-repl"
 )
-
-type cmd struct {
-	op   string
-	code string
-}
 
 // Operations and commands
 const (
@@ -41,54 +33,34 @@ const (
 	OpEval = "eval"
 
 	// commands
-	CommandRequireRepl = `(require '[clojure.repl :refer :all])`
-	CommandReset       = `(map #(ns-unmap *ns* %) (keys (ns-interns *ns*)))`
-	CommandShutdown    = `(System/exit 0)`
+	CommandRequireRepl    = `(require '[clojure.repl :refer :all])`
+	CommandSetPrintLength = `(set! *print-length* 20)`
+	CommandReset          = `(map #(ns-unmap *ns* %) (keys (ns-interns *ns*)))`
+	CommandShutdown       = `(System/exit 0)`
 )
 
-// Resp is a response from nREPL
+// Resp is a response from PREPL
 type Resp struct {
-	Ns      string        `name:"ns"`      // namespace
-	Out     string        `name:"out"`     // stdout
-	Session string        `name:"session"` // session
-	Value   string        `name:"value"`   // value
-	Ex      string        `name:"ex"`      // exception
-	RootEx  string        `name:"root-ex"` // root exception
-	Op      string        `name:"op"`      // operation
-	Status  []interface{} `name:"status"`  // status (on nREPL errors)
-	Err     string        `name:"err"`     // error
+	Tag         edn.Keyword `edn:"tag"`
+	Value       string      `edn:"val,omitempty"`
+	Namespace   string      `edn:"ns"`
+	Millisecond int64       `edn:"ms"`
+	Form        string      `edn:"form"`
+	Exception   bool        `edn:"exception,omitempty"`
+	Message     string      `edn:"message,omitempty"`
 }
 
-// HasError returns whether there was any nREPL error
-func (r *Resp) HasError() bool {
-	return len(r.Status) > 0
+// ExceptionValue struct for exception :value of Resp
+type ExceptionValue struct {
+	Cause string      `edn:"cause"`
+	Phase edn.Keyword `edn:"phase"`
 }
 
-// for struct-interface key mapping
-var respKeyMaps map[string]string
-
-func init() {
-	respKeyMaps = make(map[string]string)
-
-	// read 'name' tags
-	// https://sosedoff.com/2016/07/16/golang-struct-tags.html
-	t := reflect.TypeOf(Resp{})
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		tag := field.Tag.Get("name")
-		if len(tag) > 0 {
-			respKeyMaps[tag] = field.Name
-		} else {
-			respKeyMaps[field.Name] = field.Name
-		}
-	}
-}
-
-// Client is a nREPL client
+// Client is a PREPL client
 type Client struct {
-	LeinPath string
-	Host     string
-	Port     int
+	CljPath string
+	Host    string
+	Port    int
 
 	Verbose bool
 
@@ -98,46 +70,57 @@ type Client struct {
 }
 
 // NewClient returns a new client
-func NewClient(leinPath, host string, port int) *Client {
+func NewClient(cljPath, host string, port int) *Client {
 	addr := fmt.Sprintf("%s:%d", host, port)
 
 	client := Client{
-		LeinPath: leinPath,
-		Host:     host,
-		Port:     port,
-		conn:     nil,
+		CljPath: cljPath,
+		Host:    host,
+		Port:    port,
+		conn:    nil,
 	}
 
-	// wait for nREPL
+	// wait for PREPL
 	for i := 0; i < replConnectTimeoutSeconds; i++ {
 		time.Sleep(1 * time.Second)
 		if conn, err := net.Dial("tcp", addr); err == nil {
 			client.conn = conn
 
-			log.Printf("there is an existing nREPL on: %s", addr)
+			log.Printf("there is an existing PREPL on: %s", addr)
 			break
 		}
 
 		if i == (replConnectTimeoutSeconds - 1) {
-			log.Printf("failed to connect to nREPL, trying to launch: %s", leinPath)
+			log.Printf("failed to connect to PREPL, trying to launch: %s", cljPath)
 
-			// start nREPL server
-			replCmd := exec.Command(leinPath, "with-profile", replProfileName, "repl", ":headless", ":port", strconv.Itoa(port))
+			// start PREPL server
+			replCmd := exec.Command(
+				cljPath,
+				fmt.Sprintf(`-J-Dclojure.server.jvm={:address "%s" :port %d :accept clojure.core.server/io-prepl}`, host, port),
+			)
 			go func(cmd *exec.Cmd) {
-				if err := cmd.Run(); err != nil {
-					panic(err)
+				cmd.Stdout = os.Stdout
+				cmd.Stdin = os.Stdin
+				cmd.Stderr = os.Stderr
+				if err := cmd.Start(); err != nil {
+					panic(cmd.Stderr)
+				}
+				if err := cmd.Wait(); err != nil {
+					panic(cmd.Stderr)
 				}
 			}(replCmd)
 
-			log.Printf("waiting for nREPL to bootup...")
+			log.Printf("waiting for PREPL to bootup...")
 
-			// wait for nREPL
+			// wait for PREPL
 			for i := 0; i < replBootupTimeoutSeconds; i++ {
+				log.Printf("connecting to PREPL on: %s...", addr)
+
 				time.Sleep(1 * time.Second)
 				if conn, err := net.Dial("tcp", addr); err == nil {
 					client.conn = conn
 
-					log.Printf("connected to nREPL on: %s", addr)
+					log.Printf("connected to PREPL on: %s", addr)
 
 					client.Initialize()
 
@@ -145,7 +128,7 @@ func NewClient(leinPath, host string, port int) *Client {
 				}
 
 				if i == (replBootupTimeoutSeconds - 1) {
-					panic("failed to connect to launched nREPL: " + addr)
+					panic("failed to connect to launched PREPL: " + addr)
 				}
 			}
 		}
@@ -159,22 +142,25 @@ func (c *Client) Initialize() {
 	if _, err := c.Eval(CommandRequireRepl); err != nil {
 		log.Printf("failed to require `clojure.repl`")
 	}
+	if _, err := c.Eval(CommandSetPrintLength); err != nil {
+		log.Printf("failed to set `*print-length*`")
+	}
 
 	// TODO - add more initialization codes here
 }
 
 // Eval evaluates given code
-func (c *Client) Eval(code string) (received Resp, err error) {
+func (c *Client) Eval(code string) (received []Resp, err error) {
 	c.Lock()
 
 	if c.Verbose {
 		log.Printf("evaluating: %s", code)
 	}
 
-	received, err = c.sendAndRecv(cmd{op: OpEval, code: code})
+	received, err = c.sendAndRecv(code)
 
 	if c.Verbose {
-		log.Printf("evaluated: %s", received)
+		log.Printf("evaluated: %+v", received)
 	}
 
 	c.Unlock()
@@ -183,9 +169,9 @@ func (c *Client) Eval(code string) (received Resp, err error) {
 }
 
 // LoadFile loads given file
-func (c *Client) LoadFile(filepath string) (received Resp, err error) {
+func (c *Client) LoadFile(filepath string) (received []Resp, err error) {
 	c.Lock()
-	received, err = c.sendAndRecv(cmd{op: OpEval, code: fmt.Sprintf(`(load-file "%s")`, filepath)})
+	received, err = c.sendAndRecv(fmt.Sprintf(`(load-file "%s")`, filepath))
 	c.Unlock()
 
 	return received, err
@@ -197,14 +183,14 @@ func (c *Client) Shutdown() {
 
 	var err error
 
-	// shutdown nREPL
+	// shutdown PREPL
 	log.Printf("sending shutdown command to REPL...")
-	_, err = c.sendAndRecv(cmd{op: OpEval, code: CommandShutdown})
+	_, err = c.sendAndRecv(CommandShutdown)
 	if err != nil {
 		log.Printf("failed to send shutdown command to REPL: %s", err)
 	}
 
-	// close connection to nREPL
+	// close connection to PREPL
 	log.Printf("closing connection to REPL...")
 	err = c.conn.Close()
 	if err != nil {
@@ -214,30 +200,33 @@ func (c *Client) Shutdown() {
 	c.Unlock()
 }
 
-// send request and receive response from nREPL
-func (c *Client) sendAndRecv(request interface{}) (received Resp, err error) {
+// send request and receive response bytes from PREPL
+func (c *Client) sendAndRecvBytes(request string) (bts []byte, err error) {
 	buffer := bytes.NewBuffer([]byte{})
 
 	// set read timeout
 	if err = c.conn.SetReadDeadline(time.Now().Add(timeoutMilliseconds * time.Millisecond)); err != nil {
 		log.Printf("error while setting read deadline: %s", err)
 
-		return Resp{}, err
+		return []byte{}, err
 	}
 
-	// send BEncoded request
-	if err = bencode.Marshal(c.conn, request); err == nil {
-		numRead := 0
-		buf := make([]byte, numBytes)
+	if c.Verbose {
+		log.Printf("writing request: %s", request)
+	}
 
+	// send request
+	if _, err = c.conn.Write([]byte(request + "\n")); err == nil {
+		// read response
+		buf := make([]byte, numBytes)
 		for n := 0; n < numRetries; n++ {
-			if numRead, err = c.conn.Read(buf); err == nil {
+			if numRead, readErr := c.conn.Read(buf); readErr == nil {
 				if numRead > 0 {
 					buffer.Write(buf[:numRead])
 				}
 			} else {
-				if err != io.EOF && !(err.(net.Error)).Timeout() {
-					log.Printf("error while reading bytes: %s", err)
+				if readErr != io.EOF && !(readErr.(net.Error)).Timeout() {
+					log.Printf("error while reading bytes: %s", readErr)
 					break
 				}
 			}
@@ -253,112 +242,76 @@ func (c *Client) sendAndRecv(request interface{}) (received Resp, err error) {
 
 	// only when read buffer is filled up,
 	if buffer.Len() > 0 {
-		var decoded interface{}
-		if decoded, err = bencode.Decode(buffer); err == nil {
-			switch decoded.(type) {
-			case string:
-				return Resp{Value: decoded.(string)}, nil
-			case int64:
-				return Resp{Value: fmt.Sprintf("%d", decoded.(int64))}, nil
-			case uint64:
-				return Resp{Value: fmt.Sprintf("%d", decoded.(uint64))}, nil
-			case []interface{}:
-				return Resp{Value: fmt.Sprintf("%v", decoded)}, nil
-			case map[string]interface{}:
-				response := Resp{}
-				if err = fillRespStruct(&response, decoded.(map[string]interface{})); err == nil {
-					return response, nil
-				}
-
-				log.Printf("failed to fill struct: %s", err)
-			default:
-				log.Printf("received non-expected type: %T", decoded)
-			}
-		} else {
-			log.Printf("error while decoding BEncode: %s (%s)", err, buffer.String())
-		}
+		return cleanse(buffer.Bytes()), nil
 	}
 
-	return Resp{}, err
+	return []byte{}, err
 }
 
-// fill fields of given struct
-//
-// https://play.golang.org/p/0weG38IUA9
-func fillRespStruct(s interface{}, m map[string]interface{}) error {
-	for k, v := range m {
-		if key, ok := respKeyMaps[k]; ok {
-			if err := _setRespField(s, key, v); err != nil {
-				return err
+// send request and receive response from PREPL
+func (c *Client) sendAndRecv(request string) (received []Resp, err error) {
+	received = []Resp{}
+
+	var bts []byte
+	if bts, err = c.sendAndRecvBytes(request); err == nil {
+		var r Resp
+		for _, line := range bytes.Split(bts, []byte("\n")) {
+			// skip empty lines
+			if len(strings.TrimSpace(string(line))) <= 0 {
+				continue
+			}
+
+			if err = edn.Unmarshal(line, &r); err == nil {
+				received = append(received, r)
+			} else {
+				log.Printf("failed to unmarshal received response: %+v (%s)", r, err)
 			}
 		}
 	}
 
-	return nil
-}
-
-// set value for field of interface
-//
-// https://play.golang.org/p/0weG38IUA9
-func _setRespField(obj interface{}, name string, value interface{}) error {
-	structValue := reflect.ValueOf(obj).Elem()
-	structFieldValue := structValue.FieldByName(name)
-
-	if !structFieldValue.IsValid() {
-		return fmt.Errorf("no such field: '%s'", name)
-	}
-	if !structFieldValue.CanSet() {
-		return fmt.Errorf("cannot set '%s' field value", name)
-	}
-
-	structFieldType := structFieldValue.Type()
-	val := reflect.ValueOf(value)
-
-	if structFieldType != val.Type() {
-		return fmt.Errorf("provided value type doesn't match: %+v and %+v", structFieldType, val.Type())
-	}
-
-	structFieldValue.Set(val)
-
-	return nil
+	return received, err
 }
 
 // RespToString converts REPL response to string
-func RespToString(received Resp) string {
+func RespToString(received []Resp) string {
 	msgs := []string{}
 
-	if received.HasError() { // nREPL error
-		// join status strings
-		for _, s := range received.Status {
-			msgs = append(msgs, fmt.Sprintf("%v", s))
+	for _, r := range received {
+		if r.Exception { // PREPL error
+			var exception ExceptionValue
+			if err := edn.Unmarshal([]byte(r.Value), &exception); err == nil {
+				msgs = append(msgs, exception.Cause)
+			} else {
+				errStr := fmt.Sprintf("failed to unmarshal exception value: %s", err)
+
+				log.Printf(errStr)
+
+				msgs = append(msgs, errStr)
+			}
+		} else {
+			switch r.Tag {
+			case "ret":
+				// namespace,
+				msgs = append(msgs, fmt.Sprintf("%s=> %s", r.Namespace, r.Value))
+			case "out":
+				msgs = append(msgs, fmt.Sprintf("%s", r.Value))
+			default:
+				errStr := fmt.Sprintf("unmatched response tag: %s", r.Tag)
+
+				log.Printf(errStr)
+
+				msgs = append(msgs, errStr)
+			}
 		}
-		status := strings.Join(msgs, ", ")
-
-		// show statuses and exceptions
-		if received.Ex == received.RootEx {
-			return fmt.Sprintf("%s: %s\n", status, received.Ex)
-		}
-
-		return fmt.Sprintf("%s: %s (%s)\n", status, received.Ex, received.RootEx)
-	}
-
-	// no error
-
-	// if response has namespace,
-	if len(received.Ns) > 0 {
-		msgs = append(msgs, fmt.Sprintf("%s=> %s", received.Ns, received.Value))
-	}
-
-	// if response has a string from stdout,
-	if len(received.Out) > 0 {
-		msgs = append(msgs, fmt.Sprintf("%s", received.Out))
-	}
-
-	// if response has an error,
-	if len(received.Err) > 0 {
-		msgs = append(msgs, fmt.Sprintf("%s", received.Err))
 	}
 
 	// join them
-	return strings.Join(msgs, "\n")
+	return strings.Join(msgs, "") // already has newline
+}
+
+// cleanse string (edn parser fails on some characters...)
+func cleanse(bts []byte) []byte {
+	// invalid character ':' after token starting with "#"
+
+	return bytes.ReplaceAll(bts, []byte("#:clojure.error"), []byte(""))
 }
