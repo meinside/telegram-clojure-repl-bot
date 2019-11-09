@@ -32,8 +32,9 @@ const (
 	commandReset = "/reset"
 
 	// telegram messages
-	messageWelcome       = "Welcome!"
-	messageFailedToReset = "Failed to reset REPL."
+	messageWelcome              = "Welcome!"
+	messageFailedToReset        = "Failed to reset REPL."
+	messageErrorNothingReceived = "Nothing received from REPL."
 )
 
 type config struct {
@@ -176,8 +177,12 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *repl.Client) 
 					msg = messageWelcome
 				case commandReset:
 					if received, err := client.Eval(repl.CommandReset); err == nil {
-						r := received[0]
-						msg = fmt.Sprintf("%s=> %s", r.Namespace, r.Value)
+						if len(received) > 0 {
+							r := received[0]
+							msg = fmt.Sprintf("%s=> %s", r.Namespace, r.Value)
+						} else {
+							msg = messageErrorNothingReceived
+						}
 					} else {
 						msg = messageFailedToReset
 					}

@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -99,7 +100,6 @@ func NewClient(cljPath, host string, port int) *Client {
 				fmt.Sprintf(`-J-Dclojure.server.jvm={:address "%s" :port %d :accept clojure.core.server/io-prepl}`, host, port),
 			)
 			go func(cmd *exec.Cmd) {
-				cmd.Stdout = os.Stdout
 				cmd.Stdin = os.Stdin
 				cmd.Stderr = os.Stderr
 				if err := cmd.Start(); err != nil {
@@ -215,7 +215,7 @@ func (c *Client) sendAndRecvBytes(request string) (bts []byte, err error) {
 		log.Printf("writing request: %s", request)
 	}
 
-	// send request
+	// send request (with trailing newline)
 	if _, err = c.conn.Write([]byte(request + "\n")); err == nil {
 		// read response
 		buf := make([]byte, numBytes)
@@ -243,6 +243,10 @@ func (c *Client) sendAndRecvBytes(request string) (bts []byte, err error) {
 	// only when read buffer is filled up,
 	if buffer.Len() > 0 {
 		return cleanse(buffer.Bytes()), nil
+	}
+
+	if err == nil {
+		return []byte{}, fmt.Errorf("buffer is not filled up")
 	}
 
 	return []byte{}, err
@@ -309,9 +313,27 @@ func RespToString(received []Resp) string {
 	return strings.Join(msgs, "") // already has newline
 }
 
-// cleanse string (edn parser fails on some characters...)
-func cleanse(bts []byte) []byte {
-	// invalid character ':' after token starting with "#"
+// following strings lead to edn parser errors
+var invalidStrings = []string{
+	"#:clojure.error",
+	"#:clojure.spec.alpha",
+	"#object",
+}
 
-	return bytes.ReplaceAll(bts, []byte("#:clojure.error"), []byte(""))
+// cleanse string (edn parser fails on some characters...)
+func cleanse(original []byte) (result []byte) {
+	result = original
+
+	// XXX - remove invalid strings
+	// => invalid character ':' after token starting with "#"
+	for _, str := range invalidStrings {
+		result = bytes.ReplaceAll(result, []byte(str), []byte(""))
+	}
+
+	// XXX - replace hex numbers to strings
+	// => go-edn fails to parse hex numbers...
+	reHex := regexp.MustCompile(`(0x[0-9a-fA-F]+)`)
+	result = []byte(reHex.ReplaceAllString(string(result), `\"$1\"`))
+
+	return result
 }
