@@ -23,7 +23,7 @@ and change values to yours:
 ```json
 {
 	"api_token": "0123456789:abcdefghijklmnopqrstuvwyz-x-0a1b2c3d4e",
-	"lein_exec_path": "/usr/local/bin/lein",
+	"clj_exec_path": "/usr/local/bin/clj",
 	"repl_host": "localhost",
 	"repl_port": 8888,
 	"allowed_ids": [
