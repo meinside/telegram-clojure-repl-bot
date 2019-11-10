@@ -2,7 +2,9 @@
 
 A Telegram bot for using REPL, built with golang.
 
-![screen shot 2017-01-17 at 17 36 13](https://cloud.githubusercontent.com/assets/185988/22013289/9508932e-dcdb-11e6-8429-abf51a74bd83.png)
+![telegram-bot-repl_screenshot_20191110](https://user-images.githubusercontent.com/185988/68541027-ab035700-03dd-11ea-9151-ed1b811e2c8b.jpg)
+
+It connects to an existing PREPL connection, or launch a new PREPL and communicate with it.
 
 ## 1. Install
 
