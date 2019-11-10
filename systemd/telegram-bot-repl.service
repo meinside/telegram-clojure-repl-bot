@@ -12,6 +12,8 @@ ExecStart=/path/to/telegram-bot-repl/telegram-bot-repl
 Restart=always
 RestartSec=5
 Environment=
+StandardInput=tty
+TTYPath=/dev/tty49
 
 [Install]
 WantedBy=multi-user.target
