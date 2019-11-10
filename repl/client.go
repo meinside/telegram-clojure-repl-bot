@@ -92,29 +92,27 @@ func NewClient(cljPath, host string, port int) *Client {
 		}
 
 		if i == (replConnectTimeoutSeconds - 1) {
-			log.Printf("failed to connect to PREPL, trying to launch: %s", cljPath)
+			log.Printf("failed to connect to existing PREPL connection, trying to launch: %s", cljPath)
 
-			// start PREPL server
+			// start a new PREPL server
 			replCmd := exec.Command(
 				cljPath,
 				fmt.Sprintf(`-J-Dclojure.server.jvm={:address "%s" :port %d :accept clojure.core.server/io-prepl}`, host, port),
 			)
 			go func(cmd *exec.Cmd) {
 				cmd.Stdin = os.Stdin
-				cmd.Stderr = os.Stderr
-				if err := cmd.Start(); err != nil {
+				if err := cmd.Run(); err != nil {
 					panic(cmd.Stderr)
 				}
-				if err := cmd.Wait(); err != nil {
-					panic(cmd.Stderr)
-				}
+
+				log.Printf("PREPL exited...")
 			}(replCmd)
 
 			log.Printf("waiting for PREPL to bootup...")
 
 			// wait for PREPL
 			for i := 0; i < replBootupTimeoutSeconds; i++ {
-				log.Printf("connecting to PREPL on: %s...", addr)
+				log.Printf("connecting to PREPL on: %s", addr)
 
 				time.Sleep(1 * time.Second)
 				if conn, err := net.Dial("tcp", addr); err == nil {
