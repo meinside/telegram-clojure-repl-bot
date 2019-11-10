@@ -4,6 +4,14 @@ A Telegram bot for using REPL, built with golang.
 
 ![screen shot 2017-01-17 at 17 36 13](https://cloud.githubusercontent.com/assets/185988/22013289/9508932e-dcdb-11e6-8429-abf51a74bd83.png)
 
+## 0. Known Issue
+
+### 2019.11.10.
+
+When running with systemd, the PREPL launched by this bot stops immediately, so no useful response will be delivered.
+
+I'm trying to fix this issue.
+
 ## 1. Install
 
 ```bash
