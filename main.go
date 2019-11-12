@@ -218,19 +218,22 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *repl.Client) 
 		}
 
 		// send message
-		if sent := b.SendMessage(message.Chat.ID, msg, map[string]interface{}{
-			"reply_markup": telegram.ReplyKeyboardMarkup{ // show keyboards
-				Keyboard: [][]telegram.KeyboardButton{
-					[]telegram.KeyboardButton{
-						telegram.KeyboardButton{
-							Text: commandReset,
+		msg = strings.TrimSpace(msg)
+		if msg != "" {
+			if sent := b.SendMessage(message.Chat.ID, msg, map[string]interface{}{
+				"reply_markup": telegram.ReplyKeyboardMarkup{ // show keyboards
+					Keyboard: [][]telegram.KeyboardButton{
+						[]telegram.KeyboardButton{
+							telegram.KeyboardButton{
+								Text: commandReset,
+							},
 						},
 					},
+					ResizeKeyboard: true,
 				},
-				ResizeKeyboard: true,
-			},
-		}); !sent.Ok {
-			log.Printf("failed to send message: %s", *sent.Description)
+			}); !sent.Ok {
+				log.Printf("failed to send message: %s", *sent.Description)
+			}
 		}
 	} else {
 		log.Printf("received update has no processable message")
