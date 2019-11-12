@@ -39,13 +39,13 @@ const (
 
 // Response is a response from PREPL
 type Response struct {
-	Tag         edn.Keyword `edn:"tag"`
-	Value       string      `edn:"val,omitempty"`
-	Namespace   string      `edn:"ns"`
-	Millisecond int64       `edn:"ms"`
-	Form        string      `edn:"form"`
-	Exception   bool        `edn:"exception,omitempty"`
-	Message     string      `edn:"message,omitempty"`
+	Tag          edn.Keyword `edn:"tag"`
+	Value        string      `edn:"val,omitempty"`
+	Namespace    string      `edn:"ns"`
+	Milliseconds int64       `edn:"ms"`
+	Form         string      `edn:"form"`
+	Exception    bool        `edn:"exception,omitempty"`
+	Message      string      `edn:"message,omitempty"`
 }
 
 // ExceptionValue struct for exception :value of Response
@@ -149,13 +149,13 @@ func (c *Client) Eval(code string) (responses []Response, err error) {
 	c.Lock()
 
 	if c.Verbose {
-		log.Printf("evaluating: %s", code)
+		log.Printf("will evaluate `%s`", code)
 	}
 
 	responses, err = c.sendAndRecv(code)
 
 	if c.Verbose {
-		log.Printf("evaluated: %+v", responses)
+		log.Printf("evaluated `%s`: %+v", code, responses)
 	}
 
 	c.Unlock()
@@ -167,7 +167,15 @@ func (c *Client) Eval(code string) (responses []Response, err error) {
 func (c *Client) LoadFile(filepath string) (responses []Response, err error) {
 	c.Lock()
 
+	if c.Verbose {
+		log.Printf("will load file `%s`", filepath)
+	}
+
 	responses, err = c.sendAndRecv(fmt.Sprintf(`(load-file "%s")`, filepath))
+
+	if c.Verbose {
+		log.Printf("loaded file `%s`: %+v", filepath, responses)
+	}
 
 	c.Unlock()
 
@@ -237,10 +245,6 @@ func (c *Client) sendAndRecvBytes(request string) (result []byte, err error) {
 		return cleanse(buffer.Bytes()), nil
 	}
 
-	if err == nil {
-		err = fmt.Errorf("buffer is not filled up")
-	}
-
 	return []byte{}, err
 }
 
@@ -276,7 +280,7 @@ func RespToString(responses []Response) string {
 		if r.Exception { // PREPL error exists
 			var exception ExceptionValue
 			if err := edn.Unmarshal([]byte(r.Value), &exception); err == nil {
-				msgs = append(msgs, exception.Cause)
+				msgs = append(msgs, strings.TrimSpace(exception.Cause))
 			} else {
 				errStr := fmt.Sprintf("failed to unmarshal exception value: %s", err)
 
@@ -287,11 +291,11 @@ func RespToString(responses []Response) string {
 		} else {
 			switch r.Tag {
 			case "ret":
-				msgs = append(msgs, fmt.Sprintf("%s=> %s", r.Namespace, r.Value))
-			case "out":
-				msgs = append(msgs, fmt.Sprintf("%s", r.Value))
+				msgs = append(msgs, fmt.Sprintf("%s=> %s", r.Namespace, strings.TrimSpace(r.Value)))
+			case "out", "err":
+				msgs = append(msgs, fmt.Sprintf("%s", strings.TrimSpace(r.Value)))
 			default:
-				errStr := fmt.Sprintf("unmatched response tag: %s", r.Tag)
+				errStr := fmt.Sprintf("unhandled `%s` response: %+v", r.Tag, r)
 
 				log.Printf(errStr)
 
@@ -301,7 +305,7 @@ func RespToString(responses []Response) string {
 	}
 
 	// join them
-	return strings.Join(msgs, "") // each string already has a trailing newline
+	return strings.Join(msgs, "\n")
 }
 
 // following strings lead to go-edn's parser errors, so need to be replaced...
