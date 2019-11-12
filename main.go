@@ -39,7 +39,7 @@ const (
 
 type config struct {
 	APIToken        string   `json:"api_token"`
-	CljExecPath     string   `json:"clj_exec_path"`
+	ClojureBinPath  string   `json:"clojure_bin_path"`
 	ReplHost        string   `json:"repl_host"`
 	ReplPort        int      `json:"repl_port"`
 	AllowedIds      []string `json:"allowed_ids"`
@@ -48,7 +48,7 @@ type config struct {
 }
 
 var _apiToken string
-var _cljExecPath string
+var _clojureBinPath string
 var _replHost string
 var _replPort int
 var _monitorInterval int
@@ -79,7 +79,7 @@ func init() {
 		panic(err)
 	} else {
 		_apiToken = conf.APIToken
-		_cljExecPath = conf.CljExecPath
+		_clojureBinPath = conf.ClojureBinPath
 		_replHost = conf.ReplHost
 		_replPort = conf.ReplPort
 
@@ -108,7 +108,7 @@ func isAllowedID(id *string) bool {
 }
 
 func main() {
-	client := repl.NewClient(_cljExecPath, _replHost, _replPort)
+	client := repl.NewClient(_clojureBinPath, _replHost, _replPort)
 	client.Verbose = _isVerbose
 
 	// catch SIGINT and SIGTERM and terminate gracefully
