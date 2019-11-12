@@ -25,7 +25,7 @@ and change values to yours:
 ```json
 {
 	"api_token": "0123456789:abcdefghijklmnopqrstuvwyz-x-0a1b2c3d4e",
-	"clj_exec_path": "/usr/local/bin/clj",
+	"clojure_bin_path": "/usr/local/bin/clojure",
 	"repl_host": "localhost",
 	"repl_port": 8888,
 	"allowed_ids": [

@@ -30,9 +30,6 @@ const (
 
 // Operations and commands
 const (
-	// operations
-	OpEval = "eval"
-
 	// commands
 	CommandRequireRepl    = `(require '[clojure.repl :refer :all])`
 	CommandSetPrintLength = `(set! *print-length* 20)`
@@ -40,8 +37,8 @@ const (
 	CommandShutdown       = `(System/exit 0)`
 )
 
-// Resp is a response from PREPL
-type Resp struct {
+// Response is a response from PREPL
+type Response struct {
 	Tag         edn.Keyword `edn:"tag"`
 	Value       string      `edn:"val,omitempty"`
 	Namespace   string      `edn:"ns"`
@@ -51,7 +48,7 @@ type Resp struct {
 	Message     string      `edn:"message,omitempty"`
 }
 
-// ExceptionValue struct for exception :value of Resp
+// ExceptionValue struct for exception :value of Response
 type ExceptionValue struct {
 	Cause string      `edn:"cause"`
 	Phase edn.Keyword `edn:"phase"`
@@ -59,26 +56,25 @@ type ExceptionValue struct {
 
 // Client is a PREPL client
 type Client struct {
-	CljPath string
-	Host    string
-	Port    int
-
-	Verbose bool
+	clojureBinPath string
+	host           string
+	port           int
 
 	conn net.Conn
-
 	sync.Mutex
+
+	Verbose bool
 }
 
 // NewClient returns a new client
-func NewClient(cljPath, host string, port int) *Client {
+func NewClient(clojureBinPath, host string, port int) *Client {
 	addr := fmt.Sprintf("%s:%d", host, port)
 
 	client := Client{
-		CljPath: cljPath,
-		Host:    host,
-		Port:    port,
-		conn:    nil,
+		clojureBinPath: clojureBinPath,
+		host:           host,
+		port:           port,
+		conn:           nil,
 	}
 
 	// wait for PREPL
@@ -92,12 +88,12 @@ func NewClient(cljPath, host string, port int) *Client {
 		}
 
 		if i == (replConnectTimeoutSeconds - 1) {
-			log.Printf("failed to connect to existing PREPL connection, trying to launch: %s", cljPath)
+			log.Printf("failed to connect to existing PREPL connection, trying to launch: %s", client.clojureBinPath)
 
 			// start a new PREPL server
 			replCmd := exec.Command(
-				cljPath,
-				fmt.Sprintf(`-J-Dclojure.server.jvm={:address "%s" :port %d :accept clojure.core.server/io-prepl}`, host, port),
+				client.clojureBinPath,
+				fmt.Sprintf(`-J-Dclojure.server.jvm={:address "%s" :port %d :accept clojure.core.server/io-prepl}`, client.host, client.port),
 			)
 			go func(cmd *exec.Cmd) {
 				cmd.Stdin = os.Stdin
@@ -120,7 +116,7 @@ func NewClient(cljPath, host string, port int) *Client {
 
 					log.Printf("connected to PREPL on: %s", addr)
 
-					client.Initialize()
+					client.initialize()
 
 					break
 				}
@@ -135,63 +131,62 @@ func NewClient(cljPath, host string, port int) *Client {
 	return &client
 }
 
-// Initialize initializes this client
-func (c *Client) Initialize() {
-	if _, err := c.Eval(CommandRequireRepl); err != nil {
-		log.Printf("failed to require `clojure.repl`")
+// initialize this client
+func (c *Client) initialize() {
+	for _, cmd := range []string{
+		CommandRequireRepl,
+		CommandSetPrintLength,
+		// TODO - add more initialization codes here
+	} {
+		if _, err := c.Eval(cmd); err != nil {
+			log.Printf("failed to evaluate `%s`: %s", cmd, err)
+		}
 	}
-	if _, err := c.Eval(CommandSetPrintLength); err != nil {
-		log.Printf("failed to set `*print-length*`")
-	}
-
-	// TODO - add more initialization codes here
 }
 
 // Eval evaluates given code
-func (c *Client) Eval(code string) (received []Resp, err error) {
+func (c *Client) Eval(code string) (responses []Response, err error) {
 	c.Lock()
 
 	if c.Verbose {
 		log.Printf("evaluating: %s", code)
 	}
 
-	received, err = c.sendAndRecv(code)
+	responses, err = c.sendAndRecv(code)
 
 	if c.Verbose {
-		log.Printf("evaluated: %+v", received)
+		log.Printf("evaluated: %+v", responses)
 	}
 
 	c.Unlock()
 
-	return received, err
+	return responses, err
 }
 
 // LoadFile loads given file
-func (c *Client) LoadFile(filepath string) (received []Resp, err error) {
+func (c *Client) LoadFile(filepath string) (responses []Response, err error) {
 	c.Lock()
-	received, err = c.sendAndRecv(fmt.Sprintf(`(load-file "%s")`, filepath))
+
+	responses, err = c.sendAndRecv(fmt.Sprintf(`(load-file "%s")`, filepath))
+
 	c.Unlock()
 
-	return received, err
+	return responses, err
 }
 
 // Shutdown shuts down the REPL, it will be the best place for cleaning things up
 func (c *Client) Shutdown() {
 	c.Lock()
 
-	var err error
-
-	// shutdown PREPL
 	log.Printf("sending shutdown command to REPL...")
-	_, err = c.sendAndRecv(CommandShutdown)
-	if err != nil {
+
+	if _, err := c.sendAndRecv(CommandShutdown); err != nil {
 		log.Printf("failed to send shutdown command to REPL: %s", err)
 	}
 
-	// close connection to PREPL
 	log.Printf("closing connection to REPL...")
-	err = c.conn.Close()
-	if err != nil {
+
+	if err := c.conn.Close(); err != nil {
 		log.Printf("failed to close connection to REPL: %s", err)
 	}
 
@@ -199,7 +194,7 @@ func (c *Client) Shutdown() {
 }
 
 // send request and receive response bytes from PREPL
-func (c *Client) sendAndRecvBytes(request string) (bts []byte, err error) {
+func (c *Client) sendAndRecvBytes(request string) (result []byte, err error) {
 	buffer := bytes.NewBuffer([]byte{})
 
 	// set read timeout
@@ -233,9 +228,8 @@ func (c *Client) sendAndRecvBytes(request string) (bts []byte, err error) {
 		log.Printf("error while writing request: %s", err)
 	}
 
-	// log for debugging
 	if c.Verbose {
-		log.Printf(">>> read buffer: %+v", buffer)
+		log.Printf("read buffer: %+v", buffer)
 	}
 
 	// only when read buffer is filled up,
@@ -244,19 +238,19 @@ func (c *Client) sendAndRecvBytes(request string) (bts []byte, err error) {
 	}
 
 	if err == nil {
-		return []byte{}, fmt.Errorf("buffer is not filled up")
+		err = fmt.Errorf("buffer is not filled up")
 	}
 
 	return []byte{}, err
 }
 
 // send request and receive response from PREPL
-func (c *Client) sendAndRecv(request string) (received []Resp, err error) {
-	received = []Resp{}
+func (c *Client) sendAndRecv(request string) (responses []Response, err error) {
+	responses = []Response{}
 
 	var bts []byte
 	if bts, err = c.sendAndRecvBytes(request); err == nil {
-		var r Resp
+		var r Response
 		for _, line := range bytes.Split(bts, []byte("\n")) {
 			// skip empty lines
 			if len(strings.TrimSpace(string(line))) <= 0 {
@@ -264,22 +258,22 @@ func (c *Client) sendAndRecv(request string) (received []Resp, err error) {
 			}
 
 			if err = edn.Unmarshal(line, &r); err == nil {
-				received = append(received, r)
+				responses = append(responses, r)
 			} else {
 				log.Printf("failed to unmarshal received response: %+v (%s)", r, err)
 			}
 		}
 	}
 
-	return received, err
+	return responses, err
 }
 
 // RespToString converts REPL response to string
-func RespToString(received []Resp) string {
+func RespToString(responses []Response) string {
 	msgs := []string{}
 
-	for _, r := range received {
-		if r.Exception { // PREPL error
+	for _, r := range responses {
+		if r.Exception { // PREPL error exists
 			var exception ExceptionValue
 			if err := edn.Unmarshal([]byte(r.Value), &exception); err == nil {
 				msgs = append(msgs, exception.Cause)
@@ -293,7 +287,6 @@ func RespToString(received []Resp) string {
 		} else {
 			switch r.Tag {
 			case "ret":
-				// namespace,
 				msgs = append(msgs, fmt.Sprintf("%s=> %s", r.Namespace, r.Value))
 			case "out":
 				msgs = append(msgs, fmt.Sprintf("%s", r.Value))
@@ -308,29 +301,29 @@ func RespToString(received []Resp) string {
 	}
 
 	// join them
-	return strings.Join(msgs, "") // already has newline
+	return strings.Join(msgs, "") // each string already has a trailing newline
 }
 
-// following strings lead to edn parser errors
+// following strings lead to go-edn's parser errors, so need to be replaced...
 var invalidStrings = []string{
 	"#:clojure.error",
 	"#:clojure.spec.alpha",
 	"#object",
 }
 
+// regular expression for hex numbers
+var reHex = regexp.MustCompile(`(0x[0-9a-fA-F]+)`)
+
 // cleanse string (edn parser fails on some characters...)
 func cleanse(original []byte) (result []byte) {
 	result = original
 
 	// XXX - remove invalid strings
-	// => invalid character ':' after token starting with "#"
 	for _, str := range invalidStrings {
 		result = bytes.ReplaceAll(result, []byte(str), []byte(""))
 	}
 
-	// XXX - replace hex numbers to strings
-	// => go-edn fails to parse hex numbers...
-	reHex := regexp.MustCompile(`(0x[0-9a-fA-F]+)`)
+	// XXX - go-edn fails to parse hex numbers, so replace them to strings
 	result = []byte(reHex.ReplaceAllString(string(result), `\"$1\"`))
 
 	return result
