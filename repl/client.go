@@ -33,6 +33,7 @@ const (
 	// commands
 	CommandRequireRepl    = `(require '[clojure.repl :refer :all])`
 	CommandSetPrintLength = `(set! *print-length* 20)`
+	CommandPublics        = `(clojure.string/join ", " (map first (ns-publics (ns-name *ns*))))`
 	CommandReset          = `(map #(ns-unmap *ns* %) (keys (ns-interns *ns*)))`
 	CommandShutdown       = `(System/exit 0)`
 )
