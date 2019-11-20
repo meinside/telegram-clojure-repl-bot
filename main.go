@@ -28,13 +28,15 @@ const (
 	defaultMonitorInterval = 3
 
 	// telegram commands
-	commandStart = "/start"
-	commandReset = "/reset"
+	commandStart   = "/start"
+	commandPublics = "/publics"
+	commandReset   = "/reset"
 
 	// telegram messages
-	messageWelcome              = "Welcome!"
-	messageFailedToReset        = "Failed to reset REPL."
-	messageErrorNothingReceived = "Nothing received from REPL."
+	messageWelcome              = "welcome!"
+	messageFailedToListPublics  = "failed to list public definitions."
+	messageFailedToReset        = "failed to reset REPL."
+	messageErrorNothingReceived = "nothing received from REPL."
 )
 
 type config struct {
@@ -54,6 +56,7 @@ var _replPort int
 var _monitorInterval int
 var _allowedIds []string
 var _isVerbose bool
+var _defaultKeyboards [][]telegram.KeyboardButton
 
 // read config file
 func openConfig() (conf config, err error) {
@@ -89,6 +92,17 @@ func init() {
 		_monitorInterval = conf.MonitorInterval
 		_allowedIds = conf.AllowedIds
 		_isVerbose = conf.IsVerbose
+	}
+
+	_defaultKeyboards = [][]telegram.KeyboardButton{
+		[]telegram.KeyboardButton{
+			telegram.KeyboardButton{
+				Text: commandPublics,
+			},
+			telegram.KeyboardButton{
+				Text: commandReset,
+			},
+		},
 	}
 }
 
@@ -175,6 +189,12 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *repl.Client) 
 				switch *message.Text {
 				case commandStart:
 					msg = messageWelcome
+				case commandPublics:
+					if received, err := client.Eval(repl.CommandPublics); err == nil {
+						msg = repl.RespToString(received)
+					} else {
+						msg = messageFailedToListPublics
+					}
 				case commandReset:
 					if received, err := client.Eval(repl.CommandReset); err == nil {
 						if len(received) > 0 {
@@ -222,13 +242,7 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *repl.Client) 
 		if msg != "" {
 			if sent := b.SendMessage(message.Chat.ID, msg, map[string]interface{}{
 				"reply_markup": telegram.ReplyKeyboardMarkup{ // show keyboards
-					Keyboard: [][]telegram.KeyboardButton{
-						[]telegram.KeyboardButton{
-							telegram.KeyboardButton{
-								Text: commandReset,
-							},
-						},
-					},
+					Keyboard:       _defaultKeyboards,
 					ResizeKeyboard: true,
 				},
 			}); !sent.Ok {
