@@ -1,5 +1,5 @@
-github.com/meinside/telegram-bot-go v0.0.18 h1:pqlu/Z7AWeEs6uFoWOcekimNPrMcEnqba8N6/uIP5us=
-github.com/meinside/telegram-bot-go v0.0.18/go.mod h1:ewucpWysa/qbRTuxeV94CqAEynHhpKucR13mVnoOXtc=
-github.com/meinside/wasm-helper-go v0.0.5/go.mod h1:Seqf/Sk8HL7TM8urkLx3IakDRFq2euF2ssa5j5V3onI=
+github.com/meinside/telegram-bot-go v0.1.0 h1:x08/dDb+1eKwAQaXX+fNQHMqB2E47mw15vd6wV4rdME=
+github.com/meinside/telegram-bot-go v0.1.0/go.mod h1:Qzuml5ZQdtPhzICDiCfdaYVTFfkKsdHNsvnH+vYuYWo=
+github.com/meinside/wasm-helper-go v0.1.0/go.mod h1:Seqf/Sk8HL7TM8urkLx3IakDRFq2euF2ssa5j5V3onI=
 olympos.io/encoding/edn v0.0.0-20191103180435-78e1aef28b15 h1:SLIxtGaiGmHPMYGhOecmIaVO4Zg2Ba66ioaVLR4s1Tg=
 olympos.io/encoding/edn v0.0.0-20191103180435-78e1aef28b15/go.mod h1:oVgVk4OWVDi43qWBEyGhXgYxt7+ED4iYNpTngSLX2Iw=
