@@ -1,5 +1,4 @@
-github.com/meinside/telegram-bot-go v0.1.0 h1:x08/dDb+1eKwAQaXX+fNQHMqB2E47mw15vd6wV4rdME=
-github.com/meinside/telegram-bot-go v0.1.0/go.mod h1:Qzuml5ZQdtPhzICDiCfdaYVTFfkKsdHNsvnH+vYuYWo=
-github.com/meinside/wasm-helper-go v0.1.0/go.mod h1:Seqf/Sk8HL7TM8urkLx3IakDRFq2euF2ssa5j5V3onI=
-olympos.io/encoding/edn v0.0.0-20191103180435-78e1aef28b15 h1:SLIxtGaiGmHPMYGhOecmIaVO4Zg2Ba66ioaVLR4s1Tg=
-olympos.io/encoding/edn v0.0.0-20191103180435-78e1aef28b15/go.mod h1:oVgVk4OWVDi43qWBEyGhXgYxt7+ED4iYNpTngSLX2Iw=
+github.com/meinside/telegram-bot-go v0.3.0 h1:ngiF/2MPDELgPzMDzSXUfTKi6gQaXodf/+110VTKYTo=
+github.com/meinside/telegram-bot-go v0.3.0/go.mod h1:bFkuWCXfJVlcxFSc+3cfetrgFTek+UP/7HkUMlx5UdE=
+olympos.io/encoding/edn v0.0.0-20201019073823-d3554ca0b0a3 h1:slmdOY3vp8a7KQbHkL+FLbvbkgMqmXojpFUO/jENuqQ=
+olympos.io/encoding/edn v0.0.0-20201019073823-d3554ca0b0a3/go.mod h1:oVgVk4OWVDi43qWBEyGhXgYxt7+ED4iYNpTngSLX2Iw=
