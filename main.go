@@ -233,7 +233,7 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *repl.Client) 
 					msg = fmt.Sprintf("failed to download the document: %s", err)
 				}
 			} else {
-				msg = fmt.Sprintf("error: couldn't process your message.")
+				msg = "error: couldn't process your message."
 			}
 		}
 

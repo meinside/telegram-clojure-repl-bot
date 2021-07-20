@@ -285,7 +285,7 @@ func RespToString(responses []Response) string {
 			} else {
 				errStr := fmt.Sprintf("failed to unmarshal exception value: %s", err)
 
-				log.Printf(errStr)
+				log.Print(errStr)
 
 				msgs = append(msgs, errStr)
 			}
@@ -294,11 +294,11 @@ func RespToString(responses []Response) string {
 			case "ret":
 				msgs = append(msgs, fmt.Sprintf("%s=> %s", r.Namespace, strings.TrimSpace(r.Value)))
 			case "out", "err":
-				msgs = append(msgs, fmt.Sprintf("%s", strings.TrimSpace(r.Value)))
+				msgs = append(msgs, strings.TrimSpace(r.Value))
 			default:
 				errStr := fmt.Sprintf("unhandled `%s` response: %+v", r.Tag, r)
 
-				log.Printf(errStr)
+				log.Print(errStr)
 
 				msgs = append(msgs, errStr)
 			}
