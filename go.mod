@@ -1,6 +1,6 @@
 module github.com/meinside/telegram-bot-repl
 
-go 1.16
+go 1.17
 
 require (
 	github.com/meinside/telegram-bot-go v0.6.1
