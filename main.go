@@ -95,7 +95,7 @@ func init() {
 	}
 
 	_defaultKeyboards = [][]telegram.KeyboardButton{
-		[]telegram.KeyboardButton{
+		{
 			telegram.KeyboardButton{
 				Text: commandPublics,
 			},
