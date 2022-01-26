@@ -1,4 +1,4 @@
-github.com/meinside/telegram-bot-go v0.6.1 h1:yXttPtRgUf/1rYXCpiG1fxUqEbU0uJSWks+AKTFVRik=
-github.com/meinside/telegram-bot-go v0.6.1/go.mod h1:LCLyn3Josqrgyy/G2gGXC3QxI8t4FvqUqMOgPGoI3VY=
+github.com/meinside/telegram-bot-go v0.6.5 h1:oynobDRVsqyDHcYux5iqsgNlBsY1MzEXlphddCy8vfU=
+github.com/meinside/telegram-bot-go v0.6.5/go.mod h1:Not36nGomLvcg/zXKG1g23//BgTC5QeHT65GsDd2Gwg=
 olympos.io/encoding/edn v0.0.0-20201019073823-d3554ca0b0a3 h1:slmdOY3vp8a7KQbHkL+FLbvbkgMqmXojpFUO/jENuqQ=
 olympos.io/encoding/edn v0.0.0-20201019073823-d3554ca0b0a3/go.mod h1:oVgVk4OWVDi43qWBEyGhXgYxt7+ED4iYNpTngSLX2Iw=
