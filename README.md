@@ -135,6 +135,15 @@ TTYPath=/dev/tty49
 
 If these would be a problem for you, change them or launch your PREPL manually.
 
+### B. Systemd Service Failure with ASDF
+
+When running with java/clojure installed with [asdf](http://asdf-vm.com/), `JAVA_HOME` must be specified in the `Environment` section of the systemd .service file:
+
+```
+# example
+Environment="JAVA_HOME=/home/ubuntu/.asdf/installs/java/zulu-17.32.13"
+```
+
 ## License
 
 MIT

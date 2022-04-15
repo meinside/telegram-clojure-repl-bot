@@ -99,7 +99,11 @@ func NewClient(clojureBinPath, host string, port int) *Client {
 			go func(cmd *exec.Cmd) {
 				cmd.Stdin = os.Stdin
 				if err := cmd.Run(); err != nil {
-					panic(cmd.Stderr)
+					if cmd.Stderr != nil {
+						panic(cmd.Stderr)
+					}
+
+					panic(err)
 				}
 
 				log.Printf("PREPL exited...")

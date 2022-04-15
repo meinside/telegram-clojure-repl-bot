@@ -11,7 +11,7 @@ WorkingDirectory=/path/to/telegram-bot-repl
 ExecStart=/path/to/telegram-bot-repl/telegram-bot-repl
 Restart=always
 RestartSec=5
-Environment=
+Environment="JAVA_HOME=/path/to/java-home"
 StandardInput=tty
 TTYPath=/dev/tty49
 
