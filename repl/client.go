@@ -291,7 +291,14 @@ func RespToString(responses []Response) string {
 
 				log.Print(errStr)
 
-				msgs = append(msgs, errStr)
+				switch r.Tag {
+				case "ret":
+					msgs = append(msgs, fmt.Sprintf("%s=> %s", r.Namespace, strings.TrimSpace(r.Value)))
+				case "out", "err":
+					msgs = append(msgs, strings.TrimSpace(r.Value))
+				default:
+					msgs = append(msgs, errStr)
+				}
 			}
 		} else {
 			switch r.Tag {
