@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -64,7 +63,7 @@ func openConfig() (conf config, err error) {
 	exec, err = os.Executable()
 	if err == nil {
 		var bytes []byte
-		bytes, err = ioutil.ReadFile(filepath.Join(filepath.Dir(exec), configFilename))
+		bytes, err = os.ReadFile(filepath.Join(filepath.Dir(exec), configFilename))
 		if err == nil {
 			err = json.Unmarshal(bytes, &conf)
 			if err == nil {
@@ -183,7 +182,7 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *repl.Client) 
 			}
 		} else {
 			// 'is typing...'
-			b.SendChatAction(message.Chat.ID, telegram.ChatActionTyping)
+			b.SendChatAction(message.Chat.ID, telegram.ChatActionTyping, nil)
 
 			if message.HasText() {
 				switch *message.Text {
