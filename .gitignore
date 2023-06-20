@@ -1,4 +1,4 @@
 *.swp*
 
-telegram-bot-repl
+telegram-clojure-repl-bot
 config.json

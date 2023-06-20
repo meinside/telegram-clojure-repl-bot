@@ -3,10 +3,10 @@
 <plist version="1.0">
 <dict>
 	<key>Label</key>
-	<string>telegram-bot-repl</string>
+	<string>telegram-clojure-repl-bot</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>/path/to/telegram-bot-repl/telegram-bot-repl</string>
+		<string>/path/to/telegram-clojure-repl-bot/telegram-clojure-repl-bot</string>
 	</array>
 	<key>UserName</key>
 	<string>user_name</string>
