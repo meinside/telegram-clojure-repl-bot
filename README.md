@@ -1,21 +1,21 @@
-# telegram-bot-repl
+# telegram-clojure-repl-bot
 
-A Telegram bot for using REPL, built with golang.
+A Telegram bot for using Clojure REPL, built with golang.
 
 ![telegram-bot-repl_screenshot_20191110](https://user-images.githubusercontent.com/185988/68541027-ab035700-03dd-11ea-9151-ed1b811e2c8b.jpg)
 
-It connects to an existing PREPL connection, or launch a new PREPL and communicate with it.
+It connects to an existing PREPL connection, or launches a new PREPL and communicates with it.
 
 ## 1. Install
 
 ```bash
-$ go get -u github.com/meinside/telegram-bot-repl
+$ go get -u github.com/meinside/telegram-clojure-repl-bot
 ```
 
 ## 2. Configure
 
 ```bash
-$ cd $GOPATH/src/github.com/meinside/telegram-bot-repl
+$ cd $GOPATH/src/github.com/meinside/telegram-clojure-repl-bot
 $ cp config.json.sample config.json
 $ vi config.json
 ```
@@ -42,14 +42,14 @@ and change values to yours:
 Build,
 
 ```bash
-$ cd $GOPATH/src/github.com/meinside/telegram-bot-repl
+$ cd $GOPATH/src/github.com/meinside/telegram-clojure-repl-bot
 $ go build
 ```
 
 and run:
 
 ```bash
-$ ./telegram-bot-repl
+$ ./telegram-clojure-repl-bot
 ```
 
 ## 4. Run as a service
@@ -57,9 +57,9 @@ $ ./telegram-bot-repl
 ### A. Systemd on Linux
 
 ```bash
-$ cd $GOPATH/src/github.com/meinside/telegram-bot-repl/systemd
-$ sudo cp telegram-bot-repl.service /lib/systemd/system/
-$ sudo vi /lib/systemd/system/telegram-bot-repl.service
+$ cd $GOPATH/src/github.com/meinside/telegram-clojure-repl-bot/systemd
+$ sudo cp telegram-clojure-repl-bot.service /lib/systemd/system/
+$ sudo vi /lib/systemd/system/telegram-clojure-repl-bot.service
 ```
 
 and edit **User**, **Group**, **WorkingDirectory** and **ExecStart** values.
@@ -67,22 +67,22 @@ and edit **User**, **Group**, **WorkingDirectory** and **ExecStart** values.
 It will launch automatically on boot with:
 
 ```bash
-$ sudo systemctl enable telegram-bot-repl.service
+$ sudo systemctl enable telegram-clojure-repl-bot.service
 ```
 
 and will start/stop manually with:
 
 ```bash
-$ sudo systemctl start telegram-bot-repl.service
-$ sudo systemctl stop telegram-bot-repl.service
+$ sudo systemctl start telegram-clojure-repl-bot.service
+$ sudo systemctl stop telegram-clojure-repl-bot.service
 ```
 
 ### B. Launchd on macOS
 
 ```bash
-$ cd $GOPATH/src/github.com/meinside/telegram-bot-repl/launchd
-$ sudo cp telegram-bot-repl.plist /Library/LaunchDaemons/telegram-bot-repl.plist
-$ sudo vi /Library/LaunchDaemons/telegram-bot-repl.plist
+$ cd $GOPATH/src/github.com/meinside/telegram-clojure-repl-bot/launchd
+$ sudo cp telegram-clojure-repl-bot.plist /Library/LaunchDaemons/telegram-clojure-repl-bot.plist
+$ sudo vi /Library/LaunchDaemons/telegram-clojure-repl-bot.plist
 ```
 
 and edit values:
@@ -93,10 +93,10 @@ and edit values:
 <plist version="1.0">
 <dict>
 	<key>Label</key>
-	<string>telegram-bot-repl</string>
+	<string>telegram-clojure-repl-bot</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>/path/to/telegram-bot-repl/telegram-bot-repl</string>
+		<string>/path/to/telegram-clojure-repl-bot/telegram-clojure-repl-bot</string>
 	</array>
 	<key>UserName</key>
 	<string>user_name</string>
@@ -111,13 +111,13 @@ and edit values:
 Now load it with:
 
 ```bash
-$ sudo launchctl load /Library/LaunchDaemons/telegram-bot-repl.plist
+$ sudo launchctl load /Library/LaunchDaemons/telegram-clojure-repl-bot.plist
 ```
 
 and unload with:
 
 ```bash
-$ sudo launchctl unload /Library/LaunchDaemons/telegram-bot-repl.plist
+$ sudo launchctl unload /Library/LaunchDaemons/telegram-clojure-repl-bot.plist
 ```
 
 ## 999. Known Issues

@@ -1,5 +1,5 @@
 [Unit]
-Description=Telegram Bot for REPL
+Description=Telegram Bot for Clojure REPL
 After=syslog.target
 After=network.target
 
@@ -7,8 +7,8 @@ After=network.target
 Type=simple
 User=some_user
 Group=some_user
-WorkingDirectory=/path/to/telegram-bot-repl
-ExecStart=/path/to/telegram-bot-repl/telegram-bot-repl
+WorkingDirectory=/path/to/telegram-clojure-repl-bot
+ExecStart=/path/to/telegram-clojure-repl-bot/telegram-clojure-repl-bot
 Restart=always
 RestartSec=5
 Environment="JAVA_HOME=/path/to/java-home"

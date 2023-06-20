@@ -14,7 +14,7 @@ import (
 	"syscall"
 
 	telegram "github.com/meinside/telegram-bot-go"
-	repl "github.com/meinside/telegram-bot-repl/repl"
+	repl "github.com/meinside/telegram-clojure-repl-bot/repl"
 )
 
 const (
