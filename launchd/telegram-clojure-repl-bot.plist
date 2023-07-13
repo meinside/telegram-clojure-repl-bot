@@ -6,7 +6,8 @@
 	<string>telegram-clojure-repl-bot</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>/path/to/telegram-clojure-repl-bot/telegram-clojure-repl-bot</string>
+		<string>/path/to/installed/telegram-clojure-repl-bot</string>
+		<string>/path/to/your/config.json</string>
 	</array>
 	<key>UserName</key>
 	<string>user_name</string>
