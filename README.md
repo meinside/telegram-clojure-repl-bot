@@ -9,15 +9,15 @@ It connects to an existing PREPL connection, or launches a new PREPL and communi
 ## 1. Install
 
 ```bash
-$ go get -u github.com/meinside/telegram-clojure-repl-bot
+$ go install github.com/meinside/telegram-clojure-repl-bot@latest
 ```
 
 ## 2. Configure
 
 ```bash
-$ cd $GOPATH/src/github.com/meinside/telegram-clojure-repl-bot
-$ cp config.json.sample config.json
-$ vi config.json
+$ git clone https://github.com/meinside/telegram-clojure-repl-bot.git
+$ cp telegram-clojure-repl-bot/config.json.sample /path/to/your/config.json
+$ vi /path/to/your/config.json
 ```
 
 and change values to yours:
@@ -37,19 +37,12 @@ and change values to yours:
 }
 ```
 
-## 3. Build and run
+## 3. Run
 
-Build,
-
-```bash
-$ cd $GOPATH/src/github.com/meinside/telegram-clojure-repl-bot
-$ go build
-```
-
-and run:
+Execute the installed binary with the path to your config file:
 
 ```bash
-$ ./telegram-clojure-repl-bot
+$ telegram-clojure-repl-bot /path/to/your/config.json
 ```
 
 ## 4. Run as a service
@@ -57,8 +50,7 @@ $ ./telegram-clojure-repl-bot
 ### A. Systemd on Linux
 
 ```bash
-$ cd $GOPATH/src/github.com/meinside/telegram-clojure-repl-bot/systemd
-$ sudo cp telegram-clojure-repl-bot.service /lib/systemd/system/
+$ sudo cp telegram-clojure-repl-bot/systemd/telegram-clojure-repl-bot.service /lib/systemd/system/
 $ sudo vi /lib/systemd/system/telegram-clojure-repl-bot.service
 ```
 
@@ -80,8 +72,7 @@ $ sudo systemctl stop telegram-clojure-repl-bot.service
 ### B. Launchd on macOS
 
 ```bash
-$ cd $GOPATH/src/github.com/meinside/telegram-clojure-repl-bot/launchd
-$ sudo cp telegram-clojure-repl-bot.plist /Library/LaunchDaemons/telegram-clojure-repl-bot.plist
+$ sudo cp telegram-clojure-repl-bot/launchd/telegram-clojure-repl-bot.plist /Library/LaunchDaemons/
 $ sudo vi /Library/LaunchDaemons/telegram-clojure-repl-bot.plist
 ```
 
@@ -96,7 +87,8 @@ and edit values:
 	<string>telegram-clojure-repl-bot</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>/path/to/telegram-clojure-repl-bot/telegram-clojure-repl-bot</string>
+		<string>/path/to/installed/telegram-clojure-repl-bot</string>
+		<string>/path/to/your/config.json</string>
 	</array>
 	<key>UserName</key>
 	<string>user_name</string>

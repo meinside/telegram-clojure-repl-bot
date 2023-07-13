@@ -18,8 +18,6 @@ import (
 )
 
 const (
-	configFilename = "config.json"
-
 	tempDir = "/tmp"
 )
 
@@ -36,6 +34,11 @@ const (
 	messageFailedToListPublics  = "failed to list public definitions."
 	messageFailedToReset        = "failed to reset REPL."
 	messageErrorNothingReceived = "nothing received from REPL."
+
+	usageTextFormat = `Usage:
+
+	$ %[1]s [config_filepath]
+`
 )
 
 type config struct {
@@ -58,12 +61,10 @@ var _isVerbose bool
 var _defaultKeyboards [][]telegram.KeyboardButton
 
 // read config file
-func openConfig() (conf config, err error) {
-	var exec string
-	exec, err = os.Executable()
+func openConfig(configFilepath string) (conf config, err error) {
 	if err == nil {
 		var bytes []byte
-		bytes, err = os.ReadFile(filepath.Join(filepath.Dir(exec), configFilename))
+		bytes, err = os.ReadFile(configFilepath)
 		if err == nil {
 			err = json.Unmarshal(bytes, &conf)
 			if err == nil {
@@ -73,36 +74,6 @@ func openConfig() (conf config, err error) {
 	}
 
 	return config{}, err
-}
-
-func init() {
-	// read config
-	if conf, err := openConfig(); err != nil {
-		panic(err)
-	} else {
-		_apiToken = conf.APIToken
-		_clojureBinPath = conf.ClojureBinPath
-		_replHost = conf.ReplHost
-		_replPort = conf.ReplPort
-
-		if conf.MonitorInterval <= 0 {
-			conf.MonitorInterval = defaultMonitorInterval
-		}
-		_monitorInterval = conf.MonitorInterval
-		_allowedIds = conf.AllowedIds
-		_isVerbose = conf.IsVerbose
-	}
-
-	_defaultKeyboards = [][]telegram.KeyboardButton{
-		{
-			telegram.KeyboardButton{
-				Text: commandPublics,
-			},
-			telegram.KeyboardButton{
-				Text: commandReset,
-			},
-		},
-	}
 }
 
 // check if given Telegram id is allowed or not
@@ -121,40 +92,75 @@ func isAllowedID(id *string) bool {
 }
 
 func main() {
-	client := repl.NewClient(_clojureBinPath, _replHost, _replPort)
-	client.Verbose = _isVerbose
+	if len(os.Args) > 1 {
+		configFilepath := os.Args[1]
 
-	// catch SIGINT and SIGTERM and terminate gracefully
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
-	go func(client *repl.Client) {
-		<-sig
-		client.Shutdown() // shutdown client
-		os.Exit(1)
-	}(client)
-
-	bot := telegram.NewClient(_apiToken)
-	bot.Verbose = _isVerbose
-
-	// get info about this bot
-	if me := bot.GetMe(); me.Ok {
-		log.Printf("starting bot: @%s (%s)", *me.Result.Username, me.Result.FirstName)
-
-		// delete webhook (getting updates will not work when wehbook is set up)
-		if unhooked := bot.DeleteWebhook(true); unhooked.Ok {
-			// wait for new updates
-			bot.StartMonitoringUpdates(0, _monitorInterval, func(b *telegram.Bot, update telegram.Update, err error) {
-				if err == nil {
-					handleUpdate(b, update, client)
-				} else {
-					log.Printf("error while receiving update: %s", err.Error())
-				}
-			})
+		// read config
+		if conf, err := openConfig(configFilepath); err != nil {
+			panic(err)
 		} else {
-			panic("failed to delete webhook")
+			_apiToken = conf.APIToken
+			_clojureBinPath = conf.ClojureBinPath
+			_replHost = conf.ReplHost
+			_replPort = conf.ReplPort
+
+			if conf.MonitorInterval <= 0 {
+				conf.MonitorInterval = defaultMonitorInterval
+			}
+			_monitorInterval = conf.MonitorInterval
+			_allowedIds = conf.AllowedIds
+			_isVerbose = conf.IsVerbose
+		}
+
+		_defaultKeyboards = [][]telegram.KeyboardButton{
+			{
+				telegram.KeyboardButton{
+					Text: commandPublics,
+				},
+				telegram.KeyboardButton{
+					Text: commandReset,
+				},
+			},
+		}
+
+		// create a client
+		client := repl.NewClient(_clojureBinPath, _replHost, _replPort)
+		client.Verbose = _isVerbose
+
+		// catch SIGINT and SIGTERM and terminate gracefully
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+		go func(client *repl.Client) {
+			<-sig
+			client.Shutdown() // shutdown client
+			os.Exit(1)
+		}(client)
+
+		bot := telegram.NewClient(_apiToken)
+		bot.Verbose = _isVerbose
+
+		// get info about this bot
+		if me := bot.GetMe(); me.Ok {
+			log.Printf("starting bot: @%s (%s)", *me.Result.Username, me.Result.FirstName)
+
+			// delete webhook (getting updates will not work when wehbook is set up)
+			if unhooked := bot.DeleteWebhook(true); unhooked.Ok {
+				// wait for new updates
+				bot.StartMonitoringUpdates(0, _monitorInterval, func(b *telegram.Bot, update telegram.Update, err error) {
+					if err == nil {
+						handleUpdate(b, update, client)
+					} else {
+						log.Printf("error while receiving update: %s", err.Error())
+					}
+				})
+			} else {
+				panic("failed to delete webhook")
+			}
+		} else {
+			panic("failed to get info of the bot")
 		}
 	} else {
-		panic("failed to get info of the bot")
+		fmt.Printf(usageTextFormat, filepath.Base(os.Args[0]))
 	}
 }
 
