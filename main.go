@@ -174,6 +174,8 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *repl.Client) 
 			message = update.EditedMessage
 		}
 
+		messageID := message.MessageID
+
 		var msg string
 		username := message.From.Username
 		if !isAllowedID(username) { // check if this user is allowed to use this bot
@@ -245,12 +247,14 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *repl.Client) 
 		// send message
 		msg = strings.TrimSpace(msg)
 		if msg != "" {
-			if sent := b.SendMessage(message.Chat.ID, msg, map[string]interface{}{
-				"reply_markup": telegram.ReplyKeyboardMarkup{ // show keyboards
+			if sent := b.SendMessage(message.Chat.ID, msg, telegram.OptionsSendMessage{}.
+				SetReplyParameters(telegram.ReplyParameters{
+					MessageID: messageID,
+				}).
+				SetReplyMarkup(telegram.ReplyKeyboardMarkup{ // show keyboards
 					Keyboard:       _defaultKeyboards,
 					ResizeKeyboard: true,
-				},
-			}); !sent.Ok {
+				})); !sent.Ok {
 				log.Printf("failed to send message: %s", *sent.Description)
 			}
 		}
