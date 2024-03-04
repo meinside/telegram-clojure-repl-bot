@@ -50,8 +50,8 @@ $ telegram-clojure-repl-bot /path/to/your/config.json
 ### A. Systemd on Linux
 
 ```bash
-$ sudo cp telegram-clojure-repl-bot/systemd/telegram-clojure-repl-bot.service /lib/systemd/system/
-$ sudo vi /lib/systemd/system/telegram-clojure-repl-bot.service
+$ sudo cp telegram-clojure-repl-bot/systemd/telegram-clojure-repl-bot.service /etc/systemd/system/
+$ sudo vi /etc/systemd/system/telegram-clojure-repl-bot.service
 ```
 
 and edit **User**, **Group**, **WorkingDirectory** and **ExecStart** values.
