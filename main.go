@@ -62,14 +62,10 @@ var _defaultKeyboards [][]telegram.KeyboardButton
 
 // read config file
 func openConfig(configFilepath string) (conf config, err error) {
-	if err == nil {
-		var bytes []byte
-		bytes, err = os.ReadFile(configFilepath)
-		if err == nil {
-			err = json.Unmarshal(bytes, &conf)
-			if err == nil {
-				return conf, nil
-			}
+	var bytes []byte
+	if bytes, err = os.ReadFile(configFilepath); err == nil {
+		if err = json.Unmarshal(bytes, &conf); err == nil {
+			return conf, nil
 		}
 	}
 
@@ -114,12 +110,8 @@ func main() {
 
 		_defaultKeyboards = [][]telegram.KeyboardButton{
 			{
-				telegram.KeyboardButton{
-					Text: commandPublics,
-				},
-				telegram.KeyboardButton{
-					Text: commandReset,
-				},
+				telegram.NewKeyboardButton(commandPublics),
+				telegram.NewKeyboardButton(commandReset),
 			},
 		}
 
@@ -248,13 +240,9 @@ func handleUpdate(b *telegram.Bot, update telegram.Update, client *repl.Client) 
 		msg = strings.TrimSpace(msg)
 		if msg != "" {
 			if sent := b.SendMessage(message.Chat.ID, msg, telegram.OptionsSendMessage{}.
-				SetReplyParameters(telegram.ReplyParameters{
-					MessageID: messageID,
-				}).
-				SetReplyMarkup(telegram.ReplyKeyboardMarkup{ // show keyboards
-					Keyboard:       _defaultKeyboards,
-					ResizeKeyboard: true,
-				})); !sent.Ok {
+				SetReplyParameters(telegram.NewReplyParameters(messageID)).
+				SetReplyMarkup(telegram.NewReplyKeyboardMarkup(_defaultKeyboards). // show keyboards
+													SetResizeKeyboard(true))); !sent.Ok {
 				log.Printf("failed to send message: %s", *sent.Description)
 			}
 		}
